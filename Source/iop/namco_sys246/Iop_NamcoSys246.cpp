@@ -9,6 +9,7 @@
 #include "PathUtils.h"
 #include "iop/Iop_SifCmd.h"
 #include "iop/namco_sys246/Iop_NamcoAcRam.h"
+#include "windows.h"
 
 using namespace Iop;
 using namespace Iop::Namco;
@@ -18,6 +19,11 @@ using namespace Iop::Namco;
 #define STATE_FILE ("iop_namcoarcade/state.xml")
 #define STATE_RECV_ADDR ("recvAddr")
 #define STATE_SEND_ADDR ("sendAddr")
+
+#ifdef _WIN32
+static void *g_jvs_file_mapping = nullptr;
+static void* g_jvs_view_ptr = nullptr;
+#endif
 
 //Ref: http://daifukkat.su/files/jvs_wip.pdf
 enum
@@ -96,6 +102,12 @@ CSys246::CSys246(CSifMan& sifMan, CSifCmd& sifCmd, Namco::CAcRam& acRam, const s
     : m_acRam(acRam)
     , m_gameId(gameId)
 {
+	if(gameId == "wanganmd")
+		m_jvsMode = JVS_MODE::DRIVE;
+	if(gameId == "wanganmr")
+		m_jvsMode = JVS_MODE::DRIVE;
+	if(gameId == "rrvac")
+		m_jvsMode = JVS_MODE::DRIVE;
 	m_module001 = CSifModuleAdapter(std::bind(&CSys246::Invoke001, this,
 	                                          std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6));
 	m_module003 = CSifModuleAdapter(std::bind(&CSys246::Invoke003, this,
@@ -111,6 +123,28 @@ CSys246::CSys246(CSifMan& sifMan, CSifCmd& sifCmd, Namco::CAcRam& acRam, const s
 	                                                      std::placeholders::_1, std::placeholders::_2));
 
 	m_jvsButtonBits = g_defaultJvsButtonBits;
+#ifdef _WIN32
+	if(!g_jvs_file_mapping)
+	{
+		g_jvs_file_mapping = CreateFileMappingA(INVALID_HANDLE_VALUE,  // Use paging file
+		                                        nullptr,               // Default security
+		                                        PAGE_READWRITE,        // Read/write access
+		                                        0,                     // Maximum object size (high-order DWORD)
+		                                        64,                    // Maximum object size (low-order DWORD) - 64 bytes
+		                                        "TeknoParrot_JvsState" // Name of mapping object
+		);
+
+		if(g_jvs_file_mapping)
+		{
+			g_jvs_view_ptr = MapViewOfFile(g_jvs_file_mapping,  // Handle to map object
+			                               FILE_MAP_ALL_ACCESS, // Read/write permission
+			                               0,                   // High-order 32 bits of file offset
+			                               0,                   // Low-order 32 bits of file offset
+			                               64                   // Number of bytes to map
+			);
+		}
+	}
+#endif
 }
 
 std::string CSys246::GetId() const
@@ -293,8 +327,24 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 			inSize -= 2;
 
 			(*output++) = 0x01; //Command success
+			BYTE testData = 0;
+			BYTE control1 = 0;
+			BYTE control1ext = 0;
+			BYTE control2 = 0;
+			BYTE control2ext = 0;
+			#ifdef _WIN32
+			if(g_jvs_view_ptr)
+			{
+				testData = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 8);
+				control1 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 9);
+				control1ext = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 10);
+				control2 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 11);
+				control2ext = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 12);
+			}
+			#endif
 
 			m_counter++;
+
 			if(m_testButtonState == 0 && m_jvsSystemButtonState == 0x03 && m_counter > 16)
 			{
 				m_testButtonState = 0x80;
@@ -305,17 +355,17 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 				m_testButtonState = 0;
 				m_counter = 0;
 			}
-			(*output++) = m_testButtonState;
+			(*output++) = testData;
 
 			//(*output++) = (m_jvsSystemButtonState == 0x03) ? 0x80 : 0;  //Test
-			(*output++) = static_cast<uint8>(m_jvsButtonState[0]);      //Player 1
-			(*output++) = static_cast<uint8>(m_jvsButtonState[0] >> 8); //Player 1
+			(*output++) = control1;
+			(*output++) = control1ext;
 			(*dstSize) += 4;
 
 			if(playerCount == 2)
 			{
-				(*output++) = static_cast<uint8>(m_jvsButtonState[1]);      //Player 2
-				(*output++) = static_cast<uint8>(m_jvsButtonState[1] >> 8); //Player 2
+				(*output++) = control2;                                     //Player 2
+				(*output++) = control2ext; //Player 2
 				(*dstSize) += 2;
 			}
 		}
@@ -400,6 +450,20 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 
 			(*output++) = 0x01; //Command success
 
+			#ifdef _WIN32
+			BYTE analog0 = 0;
+			BYTE analog2 = 0;
+			BYTE analog4 = 0;
+			BYTE analog6 = 0;
+			if(g_jvs_view_ptr)
+			{
+				analog0 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 13);
+				analog2 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 14);
+				analog4 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 15);
+				analog6 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 16);
+			}
+			#endif
+
 			if(m_jvsMode == JVS_MODE::LIGHTGUN)
 			{
 				assert(channel == 2);
@@ -419,11 +483,17 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 			}
 			else if(m_jvsMode == JVS_MODE::DRIVE)
 			{
-				for(int i = 0; i < JVS_WHEEL_CHANNEL_MAX; i++)
-				{
-					(*output++) = static_cast<uint8>(m_jvsWheelChannels[i] >> 8);
-					(*output++) = static_cast<uint8>(m_jvsWheelChannels[i]);
-				}
+				(*output++) = static_cast<uint8>(analog0);
+				(*output++) = static_cast<uint8>(0);
+				(*output++) = static_cast<uint8>(analog2);
+				(*output++) = static_cast<uint8>(0);
+				(*output++) = static_cast<uint8>(analog4);
+				(*output++) = static_cast<uint8>(0);
+				//for(int i = 0; i < JVS_WHEEL_CHANNEL_MAX; i++)
+				//{
+				//	(*output++) = static_cast<uint8>(m_jvsWheelChannels[i] >> 8);
+				//	(*output++) = static_cast<uint8>(m_jvsWheelChannels[i]);
+				//}
 			}
 			else
 			{
@@ -494,10 +564,10 @@ void CSys246::SetScreenPosXform(const std::array<float, 4>& screenPosXform)
 void CSys246::SetButtonState(unsigned int padNumber, PS2::CControllerInfo::BUTTON button, bool pressed, uint8* ram)
 {
 	//For Ridge Racer V (coin button)
-	//if(pressed && (m_recvAddr != 0))
-	//{
-	//	*reinterpret_cast<uint16*>(ram + m_recvAddr + 0xC0) += 1;
-	//}
+	if(pressed && (m_recvAddr != 0))
+	{
+		*reinterpret_cast<uint16*>(ram + m_recvAddr + 0xC0) += 1;
+	}
 	if(padNumber < JVS_PLAYER_COUNT)
 	{
 		static const uint16 drumPressValue = 0x200;
