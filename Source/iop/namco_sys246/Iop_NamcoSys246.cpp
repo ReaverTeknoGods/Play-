@@ -23,6 +23,7 @@ using namespace Iop::Namco;
 #ifdef _WIN32
 static void *g_jvs_file_mapping = nullptr;
 static void* g_jvs_view_ptr = nullptr;
+static bool g_coin_pressed_prev_246;
 #endif
 
 //Ref: http://daifukkat.su/files/jvs_wip.pdf
@@ -378,6 +379,7 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 			assert(slotCount <= 2);
 			inWorkChecksum += slotCount;
 			inSize--;
+
 			uint8 slot1Condition = 0x00;
 			uint8 slot2Condition = 0x00;
 			// slot condition : 0x00 = normal
@@ -385,20 +387,45 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 			//					0x02 = counter disconnected
 			//					0x03 = busy
 
-			(*output++) = 0x01; //Command success
+			// Read coin button state from shared memory (StateView[32] - separate coin offset)
+			// Ported from Wii TeknoParrot code
+			BYTE coin_state = 0;
+#ifdef _WIN32
+			if(g_jvs_view_ptr)
+			{
+				coin_state = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 32);
+			}
+#endif
 
+			// Check coin button state from shared memory (direct value, not bit flag)
+			bool coin_pressed_now = (coin_state != 0);
+
+			// Increment coin counter on rising edge (when coin button goes from not pressed to pressed)
+			if(coin_pressed_now && !g_coin_pressed_prev_246)
+			{
+				m_coin1++;
+				if(slotCount == 2)
+				{
+					m_coin2++; // For multiple slots, increment both counters
+				}
+			}
+
+			// Update previous state for next frame
+			g_coin_pressed_prev_246 = coin_pressed_now;
+
+			(*output++) = 0x01;                                                                //Command success
 			(*output++) = static_cast<uint8>(((m_coin1 >> 8) & 0x3f) | (slot1Condition << 6)); //Coin 1 MSB + slot1condition
 			(*output++) = static_cast<uint8>(m_coin1 & 0x00ff);                                //Coin 1 LSB
-
 			(*dstSize) += 3;
 
 			if(slotCount == 2)
 			{
 				(*output++) = static_cast<uint8>(((m_coin2 >> 8) & 0x3f) | (slot2Condition << 6)); //Coin 2 MSB + slot2condition
 				(*output++) = static_cast<uint8>(m_coin2 & 0x00ff);                                //Coin 2 LSB
-
 				(*dstSize) += 2;
 			}
+
+			break;
 		}
 		break;
 		case JVS_CMD_COININC: // actually never received this jvs cmd
