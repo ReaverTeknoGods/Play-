@@ -7,6 +7,50 @@
 
 Q_DECLARE_METATYPE(std::string)
 
+#ifdef WIN32
+void InitializeEscapeKeyMonitor()
+{
+	static bool g_escape_monitor_initialized = false;
+	static HANDLE g_escape_thread = nullptr;
+
+	// Only initialize once
+	if(g_escape_monitor_initialized)
+		return;
+
+	g_escape_monitor_initialized = true;
+
+	// Create the monitoring thread
+	g_escape_thread = CreateThread(
+	    nullptr,              // Default security attributes
+	    0,                    // Default stack size
+	    [](LPVOID) -> DWORD { // Thread function
+		    while(true)
+		    {
+			    // Check if ESC key is pressed (virtual key code 0x1B)
+			    if(GetAsyncKeyState(VK_ESCAPE) & 0x8000)
+			    {
+				    // ESC is pressed, exit the process immediately
+				    ExitProcess(0);
+			    }
+
+			    // Small delay to prevent excessive CPU usage
+			    Sleep(10);
+		    }
+		    return 0;
+	    },
+	    nullptr, // No parameter to thread function
+	    0,       // Default creation flags
+	    nullptr  // Don't need thread ID
+	);
+
+	if(g_escape_thread)
+	{
+		// Set thread priority to below normal so it doesn't interfere with main execution
+		SetThreadPriority(g_escape_thread, THREAD_PRIORITY_BELOW_NORMAL);
+	}
+}
+#endif
+
 int main(int argc, char* argv[])
 {
 #if QT_VERSION >= QT_VERSION_CHECK(5, 6, 0)
@@ -18,6 +62,11 @@ int main(int argc, char* argv[])
 	QCoreApplication::setApplicationVersion("Version: " PLAY_VERSION);
 
 	qRegisterMetaType<std::string>();
+
+	#ifdef WIN32
+	// Initialize ESC key monitor for immediate exit
+	InitializeEscapeKeyMonitor();
+	#endif
 
 	QCommandLineParser parser;
 	parser.setApplicationDescription("Description: A multiplatform PS2 emulator.");
