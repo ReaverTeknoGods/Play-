@@ -1456,7 +1456,7 @@ bool CIPU::CBDECCommand::Execute()
 				{
 					if(nextBits == 0)
 					{
-						throw CStartCodeException();
+						//throw CStartCodeException();
 					}
 				}
 			}

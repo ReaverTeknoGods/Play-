@@ -591,10 +591,10 @@ void CSys246::SetScreenPosXform(const std::array<float, 4>& screenPosXform)
 void CSys246::SetButtonState(unsigned int padNumber, PS2::CControllerInfo::BUTTON button, bool pressed, uint8* ram)
 {
 	//For Ridge Racer V (coin button)
-	if(pressed && (m_recvAddr != 0))
-	{
-		*reinterpret_cast<uint16*>(ram + m_recvAddr + 0xC0) += 1;
-	}
+	//if(pressed && (m_recvAddr != 0))
+	//{
+	//	*reinterpret_cast<uint16*>(ram + m_recvAddr + 0xC0) += 1;
+	//}
 	if(padNumber < JVS_PLAYER_COUNT)
 	{
 		static const uint16 drumPressValue = 0x200;

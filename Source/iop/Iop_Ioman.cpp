@@ -322,7 +322,8 @@ uint32 CIoman::Write(uint32 handle, uint32 size, const void* buffer)
 		auto stream = GetFileStream(handle);
 		if(!stream)
 		{
-			throw std::runtime_error("Failed to obtain file stream.");
+			//throw std::runtime_error("Failed to obtain file stream.");
+			return -1;
 		}
 		result = static_cast<uint32>(stream->Write(buffer, size));
 		if((handle == FID_STDOUT) || (handle == FID_STDERR))
@@ -1016,7 +1017,8 @@ uint32 CIoman::GetFileMode(uint32 handle) const
 	auto file(m_files.find(handle));
 	if(file == std::end(m_files))
 	{
-		throw std::runtime_error("Invalid file handle.");
+		//throw std::runtime_error("Invalid file handle.");
+		return 0;
 	}
 	return file->second.flags;
 }
@@ -1026,7 +1028,8 @@ Framework::CStream* CIoman::GetFileStream(uint32 handle)
 	auto file(m_files.find(handle));
 	if(file == std::end(m_files))
 	{
-		throw std::runtime_error("Invalid file handle.");
+		//throw std::runtime_error("Invalid file handle.");
+		return nullptr;
 	}
 	return file->second.stream;
 }

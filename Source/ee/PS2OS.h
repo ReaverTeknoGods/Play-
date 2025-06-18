@@ -436,7 +436,8 @@ private:
 	void sc_MachineType();
 	void sc_GetMemorySize();
 	void sc_Unhandled();
-
+	void sc_SetOsdConfigParam();
+	void sc_SifStopDma();
 	CMIPS& m_ee;
 	CGSHandler*& m_gs;
 
