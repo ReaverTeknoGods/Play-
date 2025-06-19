@@ -16,6 +16,7 @@ namespace DiskUtils
 
 	OpticalMediaPtr CreateOpticalMediaFromPath(const fs::path&, uint32 = 0);
 	SystemConfigMap ParseSystemConfigFile(Framework::CStream*);
+	std::string GetDiskIdFromPath(const std::string& filePath);
 
 	bool TryGetDiskId(const fs::path&, std::string*);
 }

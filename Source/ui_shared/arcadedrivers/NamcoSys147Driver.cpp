@@ -5,8 +5,14 @@
 #include "PS2VM_Preferences.h"
 #include "../ArcadeDefinition.h"
 
+#include "StdStreamUtils.h"
+
 #include "iop/namco_sys147/Iop_NamcoNANDDevice.h"
 #include "iop/namco_sys147/Iop_NamcoSys147.h"
+
+// Static cache members
+std::unordered_map<std::string, std::vector<uint8>> CNamcoSys147Driver::s_nandCache;
+std::mutex CNamcoSys147Driver::s_nandCacheMutex;
 
 void CNamcoSys147Driver::PrepareEnvironment(CPS2VM* virtualMachine, const ARCADE_MACHINE_DEF& def)
 {
@@ -48,5 +54,51 @@ void CNamcoSys147Driver::PrepareEnvironment(CPS2VM* virtualMachine, const ARCADE
 
 void CNamcoSys147Driver::Launch(CPS2VM* virtualMachine, const ARCADE_MACHINE_DEF& def)
 {
+	// Enable arcade-specific optimizations for System 147  
+	// virtualMachine->m_ee->EnableArcadeOptimizations(); // TODO: Fix accessibility issue
+	
 	virtualMachine->m_ee->m_os->BootFromVirtualPath(def.boot.c_str(), {});
+}
+
+std::vector<uint8> CNamcoSys147Driver::ReadNandData(const ARCADE_MACHINE_DEF& def, const std::string& fileName)
+{
+	// Check cache first
+	std::string cacheKey = def.id + "_" + fileName;
+	{
+		std::lock_guard<std::mutex> lock(s_nandCacheMutex);
+		auto it = s_nandCache.find(cacheKey);
+		if (it != s_nandCache.end())
+		{
+			return it->second; // Return cached data
+		}
+	}
+	
+	// Load NAND data and cache it
+	auto baseId = def.parent.empty() ? def.id : def.parent;
+	fs::path arcadeRomPath = CAppConfig::GetInstance().GetPreferencePath(PREF_PS2_ARCADEROMS_DIRECTORY);
+	fs::path nandPath = arcadeRomPath / baseId / fileName;
+		if(!fs::exists(nandPath))
+	{
+		throw std::runtime_error(string_format("Failed to find '%s' in game's directory.", fileName.c_str()));
+	}
+		// Read and cache the NAND data
+	Framework::CStdStream inputStream(nandPath.string().c_str(), "rb");
+	std::vector<uint8> nandData;
+	nandData.resize(inputStream.GetLength());
+	inputStream.Read(nandData.data(), nandData.size());
+	
+	// Cache the data for future use
+	{
+		std::lock_guard<std::mutex> lock(s_nandCacheMutex);
+		s_nandCache[cacheKey] = nandData;
+	}
+	
+	return nandData;
+}
+
+fs::path CNamcoSys147Driver::LocateImageFile(const ARCADE_MACHINE_DEF& def, const std::string& fileName)
+{
+	auto baseId = def.parent.empty() ? def.id : def.parent;
+	fs::path arcadeRomPath = CAppConfig::GetInstance().GetPreferencePath(PREF_PS2_ARCADEROMS_DIRECTORY);
+	return arcadeRomPath / baseId / fileName;
 }

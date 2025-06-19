@@ -11,6 +11,13 @@ using namespace Iop::Namco;
 
 #define LOG_NAME ("iop_namco_sys147")
 
+#ifdef _WIN32
+static void* g_jvs_file_mapping = nullptr;
+static void* g_jvs_view_ptr = nullptr;
+static bool g_coin_pressed_prev_147;
+#endif
+
+
 //Switch IDs for games
 //--------------------
 
@@ -66,6 +73,28 @@ CSys147::CSys147(CSifMan& sifMan, const std::string& gameId)
 		uint16 port = CAppConfig::GetInstance().GetPreferenceInteger(PREF_PS2_ARCADE_IO_SERVER_PORT);
 		m_ioServer = std::make_unique<Framework::CHttpServer>(port, std::bind(&CSys147::HandleIoServerRequest, this, std::placeholders::_1), logPath);
 	}
+#ifdef _WIN32
+	if(!g_jvs_file_mapping)
+	{
+		g_jvs_file_mapping = CreateFileMappingA(INVALID_HANDLE_VALUE,  // Use paging file
+		                                        nullptr,               // Default security
+		                                        PAGE_READWRITE,        // Read/write access
+		                                        0,                     // Maximum object size (high-order DWORD)
+		                                        64,                    // Maximum object size (low-order DWORD) - 64 bytes
+		                                        "TeknoParrot_JvsState" // Name of mapping object
+		);
+
+		if(g_jvs_file_mapping)
+		{
+			g_jvs_view_ptr = MapViewOfFile(g_jvs_file_mapping,  // Handle to map object
+			                               FILE_MAP_ALL_ACCESS, // Read/write permission
+			                               0,                   // High-order 32 bits of file offset
+			                               0,                   // Low-order 32 bits of file offset
+			                               64                   // Number of bytes to map
+			);
+		}
+	}
+#endif
 }
 
 std::string CSys147::GetId() const
@@ -90,139 +119,114 @@ void CSys147::SetButton(unsigned int switchIndex, unsigned int padNumber, PS2::C
 
 void CSys147::SetButtonState(unsigned int padNumber, PS2::CControllerInfo::BUTTON button, bool pressed, uint8* ram)
 {
-	const auto& binding = m_switchBindings.find({padNumber, button});
-	if(binding != std::end(m_switchBindings))
-	{
-		m_switchStates[binding->second] = pressed ? 0xFF : 0x00;
-	}
+}
 
-	if(m_ioMode == IO_MODE::AI)
+void CSys147::GetTpUiButtons()
+{
+	uint16 systemSwitchMask = 0;
+	uint16 playerSwitchMask = 0;
+	BYTE p1buttons = 0;
+	BYTE p2buttons = 0;
+	BYTE p3buttons = 0;
+	BYTE p4buttons = 0;
+#ifdef _WIN32
+	if(g_jvs_view_ptr)
 	{
-		//Player Switches
-		//4 nibbles, one for each player
-		//In one nibble:
-		//Bit 0 - Up
-		//Bit 1 - Down
-		//Bit 2 - Right
-		//Bit 3 - Left
-
-		//System Switches
-		//Bit 0  - Select Down
-		//Bit 1  - Select Up
-		//Bit 2  - Enter
-		//Bit 3  - Test
-		//Bit 5  - Service
-		//Bit 8  - P4 Enter
-		//Bit 9  - P3 Enter
-		//Bit 10 - P2 Enter
-		//Bit 11 - P1 Enter
-		uint16 systemSwitchMask = 0;
-		uint16 playerSwitchMask = 0;
-		if(padNumber == 0)
-		{
-			switch(button)
-			{
-			case PS2::CControllerInfo::L1:
-				systemSwitchMask = 0x0008; //Test Button
-				break;
-			case PS2::CControllerInfo::DPAD_UP:
-				systemSwitchMask = 0x0002; //Select Up
-				playerSwitchMask = 0x1000; //P1 Up
-				break;
-			case PS2::CControllerInfo::DPAD_DOWN:
-				systemSwitchMask = 0x0001; //Select Down
-				playerSwitchMask = 0x2000; //P1 Down
-				break;
-			case PS2::CControllerInfo::DPAD_LEFT:
-				playerSwitchMask = 0x8000; //P1 Left
-				break;
-			case PS2::CControllerInfo::DPAD_RIGHT:
-				playerSwitchMask = 0x4000; //P1 Right
-				break;
-			case PS2::CControllerInfo::CROSS:
-				systemSwitchMask = 0x0804; //P1 Start + Enter
-				break;
-			default:
-				break;
-			}
-		}
-		else if(padNumber == 1)
-		{
-			switch(button)
-			{
-			case PS2::CControllerInfo::DPAD_UP:
-				playerSwitchMask = 0x0010; //P2 Up
-				break;
-			case PS2::CControllerInfo::DPAD_DOWN:
-				playerSwitchMask = 0x0020; //P2 Down
-				break;
-			case PS2::CControllerInfo::DPAD_LEFT:
-				playerSwitchMask = 0x0080; //P2 Left
-				break;
-			case PS2::CControllerInfo::DPAD_RIGHT:
-				playerSwitchMask = 0x0040; //P2 Right
-				break;
-			case PS2::CControllerInfo::CROSS:
-				systemSwitchMask = 0x0400; //P2 Start
-				break;
-			default:
-				break;
-			}
-		}
-		else if(padNumber == 2)
-		{
-			switch(button)
-			{
-			case PS2::CControllerInfo::DPAD_UP:
-				playerSwitchMask = 0x0100; //P3 Up
-				break;
-			case PS2::CControllerInfo::DPAD_DOWN:
-				playerSwitchMask = 0x0200; //P3 Down
-				break;
-			case PS2::CControllerInfo::DPAD_LEFT:
-				playerSwitchMask = 0x0800; //P3 Left
-				break;
-			case PS2::CControllerInfo::DPAD_RIGHT:
-				playerSwitchMask = 0x0400; //P3 Right
-				break;
-			case PS2::CControllerInfo::CROSS:
-				systemSwitchMask = 0x0200; //P3 Start
-				break;
-			default:
-				break;
-			}
-		}
-		else if(padNumber == 3)
-		{
-			switch(button)
-			{
-			case PS2::CControllerInfo::DPAD_UP:
-				playerSwitchMask = 0x0001; //P4 Up
-				break;
-			case PS2::CControllerInfo::DPAD_DOWN:
-				playerSwitchMask = 0x0002; //P4 Down
-				break;
-			case PS2::CControllerInfo::DPAD_LEFT:
-				playerSwitchMask = 0x0008; //P4 Left
-				break;
-			case PS2::CControllerInfo::DPAD_RIGHT:
-				playerSwitchMask = 0x0004; //P4 Right
-				break;
-			case PS2::CControllerInfo::CROSS:
-				systemSwitchMask = 0x0100; //P4 Start
-				break;
-			default:
-				break;
-			}
-		}
-		m_systemSwitchState &= ~systemSwitchMask;
-		m_playerSwitchState &= ~playerSwitchMask;
-		if(!pressed)
-		{
-			m_systemSwitchState |= systemSwitchMask;
-			m_playerSwitchState |= playerSwitchMask;
-		}
+		p1buttons = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 8);
+		p2buttons = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 9);
+		p3buttons = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 10);
+		p4buttons = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 11);
 	}
+#endif
+		if(p1buttons & 0x01) //Test Button
+		{
+			systemSwitchMask = 0x0008; //Test Button
+		}
+		if(p1buttons & 0x02) //Select Up
+		{
+			systemSwitchMask |= 0x0002; //Select Up
+			playerSwitchMask |= 0x1000; //P1 Up
+		}
+		if(p1buttons & 0x04) //Select Down
+		{
+			systemSwitchMask |= 0x0001; //Select Down
+			playerSwitchMask |= 0x2000; //P1 Down
+		}
+		if(p1buttons & 0x08) //P1 Left
+		{
+			playerSwitchMask |= 0x8000; //P1 Left
+		}
+		if(p1buttons & 0x10) //P1 Right
+		{
+			playerSwitchMask |= 0x4000; //P1 Right
+		}
+		if(p1buttons & 0x20) //P1 Start
+		{
+			systemSwitchMask |= 0x0804; //P1 Start + Enter
+		}
+		if(p2buttons & 0x02) //Select Up
+		{
+			playerSwitchMask |= 0x0010; //P2 Up
+		}
+		if(p2buttons & 0x04) //Select Down
+		{
+			playerSwitchMask |= 0x0020; //P2 Down
+		}
+		if(p2buttons & 0x08) //P2 Left
+		{
+			playerSwitchMask |= 0x0080; //P2 Left
+		}
+		if(p2buttons & 0x10) //P2 Right
+		{
+			playerSwitchMask |= 0x0040; //P2 Right
+		}
+		if(p2buttons & 0x20) //P2 Start
+		{
+			systemSwitchMask |= 0x0400; //P2 Start
+		}
+		if(p3buttons & 0x02) //Select Up
+		{
+			playerSwitchMask |= 0x0100; //P3 Up
+		}
+		if(p3buttons & 0x04) //Select Down
+		{
+			playerSwitchMask |= 0x0200; //P3 Down
+		}
+		if(p3buttons & 0x08) //P3 Left
+		{
+			playerSwitchMask |= 0x0800; //P3 Left
+		}
+		if(p3buttons & 0x10) //P3 Right
+		{
+			playerSwitchMask |= 0x0400; //P3 Right
+		}
+		if(p3buttons & 0x20) //P3 Start
+		{
+			systemSwitchMask |= 0x0200; //P3 Start
+		}
+		if(p4buttons & 0x02)
+		{
+			playerSwitchMask |= 0x0001; //P4 Up
+		}
+		if(p4buttons & 0x04)
+		{
+			playerSwitchMask |= 0x0002; //P4 Down
+		}
+		if(p4buttons & 0x08) //P4 Left
+		{
+			playerSwitchMask |= 0x0008; //P4 Left
+		}
+		if(p4buttons & 0x10) //P4 Right
+		{
+			playerSwitchMask |= 0x0004; //P4 Right
+		}
+	    if(p4buttons & 0x20) //P4 Start
+	    {
+		    systemSwitchMask |= 0x0100; //P4 Start
+	    }
+
+	    m_systemSwitchState = ~systemSwitchMask;
+	    m_playerSwitchState = ~playerSwitchMask;
 }
 
 void CSys147::SetAxisState(unsigned int padNumber, PS2::CControllerInfo::BUTTON button, uint8 axisValue, uint8* ram)
@@ -552,6 +556,7 @@ bool CSys147::Invoke99(uint32 method, uint32* args, uint32 argsSize, uint32* ret
 				//Pac Man Battle Royale uses this for switch state
 				if(m_ioMode == IO_MODE::AI)
 				{
+					GetTpUiButtons();
 					{
 						MODULE_99_PACKET reply = {};
 						reply.type = 2;

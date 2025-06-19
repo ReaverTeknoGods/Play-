@@ -65,14 +65,17 @@ namespace Ee
 		CINTC m_intc;
 		CIPU m_ipu;
 		CTimer m_timer;
-		CPS2OS* m_os = nullptr;
-		CIopBios& m_iopBios;
+		CPS2OS* m_os = nullptr;		CIopBios& m_iopBios;
+
+		// Public arcade-specific optimizations
+		void EnableArcadeOptimizations();
+		void SetupOptimizedMemoryMap();
 
 		void* operator new(size_t allocSize)
 		{
 			return framework_aligned_alloc(allocSize, 0x10);
 		}
-
+		
 		void operator delete(void* ptr)
 		{
 			return framework_aligned_free(ptr);
@@ -80,6 +83,16 @@ namespace Ee
 
 	private:
 		typedef std::map<uint32, uint32> StatusRegisterCheckerMap;
+
+		// Optimized static handlers for arcade performance
+		static uint32 IOPortReadHandler_Static(void* context, uint32 address);
+		static uint32 IOPortWriteHandler_Static(void* context, uint32 address, uint32 data);
+		static uint32 Vu0IoPortReadHandler_Static(void* context, uint32 address);
+		static uint32 Vu0IoPortWriteHandler_Static(void* context, uint32 address, uint32 data);
+		static uint32 Vu1IoPortReadHandler_Static(void* context, uint32 address);
+		static uint32 Vu1IoPortWriteHandler_Static(void* context, uint32 address, uint32 data);
+		static uint32 Vu0MicroMemWriteHandler_Static(void* context, uint32 address, uint32 data);
+		static uint32 Vu1MicroMemWriteHandler_Static(void* context, uint32 address, uint32 data);
 
 		void SetupEePageTable();
 

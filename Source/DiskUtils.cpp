@@ -209,7 +209,7 @@ DiskUtils::SystemConfigMap DiskUtils::ParseSystemConfigFile(Framework::CStream* 
 	return result;
 }
 
-static std::string GetDiskIdFromPath(const std::string& filePath)
+static std::string DiskUtils::GetDiskIdFromPath(const std::string& filePath)
 {
 	//Expecting something like SCUS_XXX.XX;1
 	if(filePath.length() < 13)

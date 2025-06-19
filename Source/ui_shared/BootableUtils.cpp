@@ -2,6 +2,8 @@
 #include <cstring>
 #include "BootableUtils.h"
 #include "DiskUtils.h"
+#include "ArcadeDiskCache.h"
+#include "OpticalMedia.h"
 
 bool BootableUtils::IsBootableExecutablePath(const fs::path& filePath)
 {
@@ -39,15 +41,27 @@ BootableUtils::BOOTABLE_TYPE BootableUtils::GetBootableType(const fs::path& file
 	{
 		try
 		{
+			// Optimization: Use cached disk validation for better performance
+			std::string cachedDiskId;
+			if(CArcadeDiskCache::GetInstance().GetCachedDiskId(filePath, &cachedDiskId))
+			{
+				return BootableUtils::BOOTABLE_TYPE::PS2_DISC;
+			}
+			
+			// Fallback to full validation if not cached
 			auto opticalMedia = DiskUtils::CreateOpticalMediaFromPath(filePath, COpticalMedia::CREATE_AUTO_DISABLE_DL_DETECT);
 			auto fileSystem = opticalMedia->GetFileSystem();
 			auto systemConfigFile = std::unique_ptr<Framework::CStream>(fileSystem->Open("SYSTEM.CNF;1"));
 			if(!systemConfigFile) return BootableUtils::BOOTABLE_TYPE::UNKNOWN;
 
-			auto systemConfig = DiskUtils::ParseSystemConfigFile(systemConfigFile.get());
-
-			if(auto bootItemIterator = systemConfig.find("BOOT2"); bootItemIterator != std::end(systemConfig))
+			auto systemConfig = DiskUtils::ParseSystemConfigFile(systemConfigFile.get());			if(auto bootItemIterator = systemConfig.find("BOOT2"); bootItemIterator != std::end(systemConfig))
 			{
+				// Cache the result for future use
+				std::string diskId;
+				if(DiskUtils::TryGetDiskId(filePath, &diskId))
+				{
+					CArcadeDiskCache::GetInstance().CacheDiskId(filePath, diskId);
+				}
 				return BootableUtils::BOOTABLE_TYPE::PS2_DISC;
 			}
 		}

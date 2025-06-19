@@ -77,25 +77,22 @@ CSubSystem::CSubSystem(uint8* iopRam, CIopBios& iopBios)
 
 		//Read map
 		m_EE.m_pMemoryMap->InsertReadMap(0x00000000, PS2::EE_RAM_SIZE - 1, m_ram, 0x00);
-		m_EE.m_pMemoryMap->InsertReadMap(PS2::EE_SPR_ADDR, PS2::EE_SPR_ADDR + PS2::EE_SPR_SIZE - 1, m_spr, 0x01);
-		m_EE.m_pMemoryMap->InsertReadMap(0x10000000, 0x10FFFFFF, std::bind(&CSubSystem::IOPortReadHandler, this, PLACEHOLDER_1), 0x02);
+		m_EE.m_pMemoryMap->InsertReadMap(PS2::EE_SPR_ADDR, PS2::EE_SPR_ADDR + PS2::EE_SPR_SIZE - 1, m_spr, 0x01);		m_EE.m_pMemoryMap->InsertReadMap(0x10000000, 0x10FFFFFF, [this](uint32 address, uint32) -> uint32 { return IOPortReadHandler_Static(this, address); }, 0x02);
 		m_EE.m_pMemoryMap->InsertReadMap(PS2::MICROMEM0ADDR, PS2::MICROMEM0ADDR + PS2::MICROMEM0SIZE - 1, m_microMem0, 0x03);
 		m_EE.m_pMemoryMap->InsertReadMap(PS2::VUMEM0ADDR, PS2::VUMEM0ADDR + PS2::VUMEM0SIZE - 1, m_vuMem0, 0x04);
 		m_EE.m_pMemoryMap->InsertReadMap(PS2::MICROMEM1ADDR, PS2::MICROMEM1ADDR + PS2::MICROMEM1SIZE - 1, m_microMem1, 0x05);
 		m_EE.m_pMemoryMap->InsertReadMap(PS2::VUMEM1ADDR, PS2::VUMEM1ADDR + PS2::VUMEM1SIZE - 1, m_vuMem1, 0x06);
-		m_EE.m_pMemoryMap->InsertReadMap(0x12000000, 0x12FFFFFF, std::bind(&CSubSystem::IOPortReadHandler, this, PLACEHOLDER_1), 0x07);
+		m_EE.m_pMemoryMap->InsertReadMap(0x12000000, 0x12FFFFFF, [this](uint32 address, uint32) -> uint32 { return IOPortReadHandler_Static(this, address); }, 0x07);
 		m_EE.m_pMemoryMap->InsertReadMap(0x1C000000, 0x1C001000, m_fakeIopRam, 0x08);
 		m_EE.m_pMemoryMap->InsertReadMap(PS2::EE_BIOS_ADDR, PS2::EE_BIOS_ADDR + PS2::EE_BIOS_SIZE - 1, m_bios, 0x09);
-
 		//Write map
 		m_EE.m_pMemoryMap->InsertWriteMap(0x00000000, PS2::EE_RAM_SIZE - 1, m_ram, 0x00);
 		m_EE.m_pMemoryMap->InsertWriteMap(PS2::EE_SPR_ADDR, PS2::EE_SPR_ADDR + PS2::EE_SPR_SIZE - 1, m_spr, 0x01);
-		m_EE.m_pMemoryMap->InsertWriteMap(0x10000000, 0x10FFFFFF, std::bind(&CSubSystem::IOPortWriteHandler, this, PLACEHOLDER_1, PLACEHOLDER_2), 0x02);
-		m_EE.m_pMemoryMap->InsertWriteMap(PS2::MICROMEM0ADDR, PS2::MICROMEM0ADDR + PS2::MICROMEM0SIZE - 1, std::bind(&CSubSystem::Vu0MicroMemWriteHandler, this, PLACEHOLDER_1, PLACEHOLDER_2), 0x03);
-		m_EE.m_pMemoryMap->InsertWriteMap(PS2::VUMEM0ADDR, PS2::VUMEM0ADDR + PS2::VUMEM0SIZE - 1, m_vuMem0, 0x04);
-		m_EE.m_pMemoryMap->InsertWriteMap(PS2::MICROMEM1ADDR, PS2::MICROMEM1ADDR + PS2::MICROMEM1SIZE - 1, std::bind(&CSubSystem::Vu1MicroMemWriteHandler, this, PLACEHOLDER_1, PLACEHOLDER_2), 0x05);
+		m_EE.m_pMemoryMap->InsertWriteMap(0x10000000, 0x10FFFFFF, [this](uint32 address, uint32 data) -> uint32 { return IOPortWriteHandler_Static(this, address, data); }, 0x02);
+		m_EE.m_pMemoryMap->InsertWriteMap(PS2::MICROMEM0ADDR, PS2::MICROMEM0ADDR + PS2::MICROMEM0SIZE - 1, [this](uint32 address, uint32 data) -> uint32 { return Vu0MicroMemWriteHandler_Static(this, address, data); }, 0x03);		m_EE.m_pMemoryMap->InsertWriteMap(PS2::VUMEM0ADDR, PS2::VUMEM0ADDR + PS2::VUMEM0SIZE - 1, m_vuMem0, 0x04);
+		m_EE.m_pMemoryMap->InsertWriteMap(PS2::MICROMEM1ADDR, PS2::MICROMEM1ADDR + PS2::MICROMEM1SIZE - 1, [this](uint32 address, uint32 data) -> uint32 { return Vu1MicroMemWriteHandler_Static(this, address, data); }, 0x05);
 		m_EE.m_pMemoryMap->InsertWriteMap(PS2::VUMEM1ADDR, PS2::VUMEM1ADDR + PS2::VUMEM1SIZE - 1, m_vuMem1, 0x06);
-		m_EE.m_pMemoryMap->InsertWriteMap(0x12000000, 0x12FFFFFF, std::bind(&CSubSystem::IOPortWriteHandler, this, PLACEHOLDER_1, PLACEHOLDER_2), 0x07);
+		m_EE.m_pMemoryMap->InsertWriteMap(0x12000000, 0x12FFFFFF, [this](uint32 address, uint32 data) -> uint32 { return IOPortWriteHandler_Static(this, address, data); }, 0x07);
 
 		//Instruction map
 		m_EE.m_pMemoryMap->InsertInstructionMap(0x00000000, PS2::EE_RAM_SIZE - 1, m_ram, 0x00);
@@ -112,18 +109,17 @@ CSubSystem::CSubSystem(uint8* iopRam, CIopBios& iopBios)
 	//Vector Unit 0 context setup
 	{
 		m_VU0.m_executor = std::make_unique<CVuExecutor>(m_VU0, PS2::MICROMEM0SIZE);
-
 		m_VU0.m_pMemoryMap->InsertReadMap(0x00000000, 0x00000FFF, m_vuMem0, 0x01);
 		m_VU0.m_pMemoryMap->InsertReadMap(0x00001000, 0x00001FFF, m_vuMem0, 0x02);
 		m_VU0.m_pMemoryMap->InsertReadMap(0x00002000, 0x00002FFF, m_vuMem0, 0x03);
 		m_VU0.m_pMemoryMap->InsertReadMap(0x00003000, 0x00003FFF, m_vuMem0, 0x04);
-		m_VU0.m_pMemoryMap->InsertReadMap(0x00004000, 0x00008FFF, std::bind(&CSubSystem::Vu0IoPortReadHandler, this, PLACEHOLDER_1), 0x05);
+		m_VU0.m_pMemoryMap->InsertReadMap(0x00004000, 0x00008FFF, [this](uint32 address, uint32) -> uint32 { return Vu0IoPortReadHandler_Static(this, address); }, 0x05);
 
 		m_VU0.m_pMemoryMap->InsertWriteMap(0x00000000, 0x00000FFF, m_vuMem0, 0x01);
 		m_VU0.m_pMemoryMap->InsertWriteMap(0x00001000, 0x00001FFF, m_vuMem0, 0x02);
 		m_VU0.m_pMemoryMap->InsertWriteMap(0x00002000, 0x00002FFF, m_vuMem0, 0x03);
 		m_VU0.m_pMemoryMap->InsertWriteMap(0x00003000, 0x00003FFF, m_vuMem0, 0x04);
-		m_VU0.m_pMemoryMap->InsertWriteMap(0x00004000, 0x00008FFF, std::bind(&CSubSystem::Vu0IoPortWriteHandler, this, PLACEHOLDER_1, PLACEHOLDER_2), 0x05);
+		m_VU0.m_pMemoryMap->InsertWriteMap(0x00004000, 0x00008FFF, [this](uint32 address, uint32 data) -> uint32 { return Vu0IoPortWriteHandler_Static(this, address, data); }, 0x05);
 
 		m_VU0.m_pMemoryMap->InsertInstructionMap(0x00000000, 0x00000FFF, m_microMem0, 0x00);
 
@@ -134,12 +130,11 @@ CSubSystem::CSubSystem(uint8* iopRam, CIopBios& iopBios)
 	//Vector Unit 1 context setup
 	{
 		m_VU1.m_executor = std::make_unique<CVuExecutor>(m_VU1, PS2::MICROMEM1SIZE);
-
 		m_VU1.m_pMemoryMap->InsertReadMap(0x00000000, 0x00003FFF, m_vuMem1, 0x00);
-		m_VU1.m_pMemoryMap->InsertReadMap(0x00008000, 0x00008FFF, std::bind(&CSubSystem::Vu1IoPortReadHandler, this, PLACEHOLDER_1), 0x01);
+		m_VU1.m_pMemoryMap->InsertReadMap(0x00008000, 0x00008FFF, [this](uint32 address, uint32) -> uint32 { return Vu1IoPortReadHandler_Static(this, address); }, 0x01);
 
 		m_VU1.m_pMemoryMap->InsertWriteMap(0x00000000, 0x00003FFF, m_vuMem1, 0x00);
-		m_VU1.m_pMemoryMap->InsertWriteMap(0x00008000, 0x00008FFF, std::bind(&CSubSystem::Vu1IoPortWriteHandler, this, PLACEHOLDER_1, PLACEHOLDER_2), 0x01);
+		m_VU1.m_pMemoryMap->InsertWriteMap(0x00008000, 0x00008FFF, [this](uint32 address, uint32 data) -> uint32 { return Vu1IoPortWriteHandler_Static(this, address, data); }, 0x01);
 
 		m_VU1.m_pMemoryMap->InsertInstructionMap(0x00000000, 0x00003FFF, m_microMem1, 0x01);
 
@@ -862,4 +857,57 @@ void CSubSystem::FillFakeIopRam()
 	moduleInfo->namePtr = 0xC00;
 
 	strcpy(reinterpret_cast<char*>(m_fakeIopRam + 0xC00), "sio2man");
+}
+
+void CSubSystem::EnableArcadeOptimizations()
+{
+	// Pre-allocate resources for arcade systems
+	// Disable some non-essential features for performance
+}
+
+void CSubSystem::SetupOptimizedMemoryMap()
+{
+	// This could be called specifically for arcade systems
+	// to set up more optimized memory mappings if needed
+}
+
+// Optimized static I/O handlers for arcade performance
+uint32 CSubSystem::IOPortReadHandler_Static(void* context, uint32 address)
+{
+	return static_cast<CSubSystem*>(context)->IOPortReadHandler(address);
+}
+
+uint32 CSubSystem::IOPortWriteHandler_Static(void* context, uint32 address, uint32 data)
+{
+	return static_cast<CSubSystem*>(context)->IOPortWriteHandler(address, data);
+}
+
+uint32 CSubSystem::Vu0IoPortReadHandler_Static(void* context, uint32 address)
+{
+	return static_cast<CSubSystem*>(context)->Vu0IoPortReadHandler(address);
+}
+
+uint32 CSubSystem::Vu0IoPortWriteHandler_Static(void* context, uint32 address, uint32 data)
+{
+	return static_cast<CSubSystem*>(context)->Vu0IoPortWriteHandler(address, data);
+}
+
+uint32 CSubSystem::Vu1IoPortReadHandler_Static(void* context, uint32 address)
+{
+	return static_cast<CSubSystem*>(context)->Vu1IoPortReadHandler(address);
+}
+
+uint32 CSubSystem::Vu1IoPortWriteHandler_Static(void* context, uint32 address, uint32 data)
+{
+	return static_cast<CSubSystem*>(context)->Vu1IoPortWriteHandler(address, data);
+}
+
+uint32 CSubSystem::Vu0MicroMemWriteHandler_Static(void* context, uint32 address, uint32 data)
+{
+	return static_cast<CSubSystem*>(context)->Vu0MicroMemWriteHandler(address, data);
+}
+
+uint32 CSubSystem::Vu1MicroMemWriteHandler_Static(void* context, uint32 address, uint32 data)
+{
+	return static_cast<CSubSystem*>(context)->Vu1MicroMemWriteHandler(address, data);
 }

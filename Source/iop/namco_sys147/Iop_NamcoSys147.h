@@ -28,7 +28,7 @@ namespace Iop
 
 			void SetIoMode(IO_MODE);
 			void SetButton(unsigned int, unsigned int, PS2::CControllerInfo::BUTTON);
-
+			void GetTpUiButtons();
 			//CPadInterface
 			void SetButtonState(unsigned int, PS2::CControllerInfo::BUTTON, bool, uint8*) override;
 			void SetAxisState(unsigned int, PS2::CControllerInfo::BUTTON, uint8, uint8*) override;

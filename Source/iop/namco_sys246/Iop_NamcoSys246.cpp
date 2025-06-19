@@ -266,16 +266,32 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 			}
 			else if(m_jvsMode == JVS_MODE::LIGHTGUN)
 			{
-				(*output++) = 0x06; //Screen Pos Input
-				(*output++) = 0x10; //X pos bits
-				(*output++) = 0x10; //Y pos bits
-				(*output++) = 0x01; //channels
+				if(m_gameId == "vnight")
+				{
+					(*output++) = 0x06; //Screen Pos Input
+					(*output++) = 0x10; //X pos bits
+					(*output++) = 0x10; //Y pos bits
+					(*output++) = 0x02; //channels
 
-				//Time Crisis 4 reads from analog input to determine screen position
-				(*output++) = 0x03; //Analog Input
-				(*output++) = 0x02; //Channel Count (2 channels)
-				(*output++) = 0x10; //Bits (16 bits)
-				(*output++) = 0x00;
+					//Time Crisis 4 reads from analog input to determine screen position
+					(*output++) = 0x03; //Analog Input
+					(*output++) = 0x02; //Channel Count (2 channels)
+					(*output++) = 0x10; //Bits (16 bits)
+					(*output++) = 0x00;
+				}
+				else
+				{
+					(*output++) = 0x06; //Screen Pos Input
+					(*output++) = 0x10; //X pos bits
+					(*output++) = 0x10; //Y pos bits
+					(*output++) = 0x01; //channels
+
+					//Time Crisis 4 reads from analog input to determine screen position
+					(*output++) = 0x03; //Analog Input
+					(*output++) = 0x02; //Channel Count (2 channels)
+					(*output++) = 0x10; //Bits (16 bits)
+					(*output++) = 0x00;
+				}
 
 				(*dstSize) += 8;
 			}
@@ -493,11 +509,33 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 
 			if(m_jvsMode == JVS_MODE::LIGHTGUN)
 			{
-				assert(channel == 2);
-				(*output++) = static_cast<uint8>(m_jvsScreenPosX >> 8); //Pos X MSB
-				(*output++) = static_cast<uint8>(m_jvsScreenPosX);      //Pos X LSB
-				(*output++) = static_cast<uint8>(m_jvsScreenPosY >> 8); //Pos Y MSB
-				(*output++) = static_cast<uint8>(m_jvsScreenPosY);      //Pos Y LSB
+				if(m_gameId == "vnight")
+				{
+					(*output++) = static_cast<uint8>(analog0);
+					(*output++) = static_cast<uint8>(0);
+					(*output++) = static_cast<uint8>(analog2);
+					(*output++) = static_cast<uint8>(0);
+					(*output++) = static_cast<uint8>(analog4);
+					(*output++) = static_cast<uint8>(0);
+					(*output++) = static_cast<uint8>(analog6);
+					(*output++) = static_cast<uint8>(0);
+
+				}
+				else if(m_gameId == "timecrs4")
+				{
+					(*output++) = static_cast<uint8>(0);
+					(*output++) = static_cast<uint8>(analog0);
+					(*output++) = static_cast<uint8>(0);
+					(*output++) = static_cast<uint8>(analog2);
+				}
+				else
+				{
+					assert(channel == 2);
+					(*output++) = static_cast<uint8>(m_jvsScreenPosX >> 8); //Pos X MSB
+					(*output++) = static_cast<uint8>(m_jvsScreenPosX);      //Pos X LSB
+					(*output++) = static_cast<uint8>(m_jvsScreenPosY >> 8); //Pos Y MSB
+					(*output++) = static_cast<uint8>(m_jvsScreenPosY);      //Pos Y LSB
+				}
 			}
 			else if(m_jvsMode == JVS_MODE::DRUM)
 			{
@@ -534,16 +572,54 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 		{
 			assert(inSize != 0);
 			uint8 channel = (*input++);
-			assert(channel == 1);
+			//assert(channel == 1);
 			inWorkChecksum += channel;
 			inSize--;
-
+#ifdef _WIN32
+			BYTE analog0 = 0;
+			BYTE analog2 = 0;
+			BYTE analog4 = 0;
+			BYTE analog6 = 0;
+			if(g_jvs_view_ptr)
+			{
+				analog0 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 13);
+				analog2 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 14);
+				analog4 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 15);
+				analog6 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 16);
+			}
+#endif
 			(*output++) = 0x01; //Command success
-
-			(*output++) = static_cast<uint8>(m_jvsScreenPosX >> 8); //Pos X MSB
-			(*output++) = static_cast<uint8>(m_jvsScreenPosX);      //Pos X LSB
-			(*output++) = static_cast<uint8>(m_jvsScreenPosY >> 8); //Pos Y MSB
-			(*output++) = static_cast<uint8>(m_jvsScreenPosY);      //Pos Y LSB
+			if (channel == 1)
+			{
+				if (m_gameId == "timecrs3")
+				{
+					(*output++) = static_cast<uint8>(0);
+					(*output++) = static_cast<uint8>(analog0);
+					(*output++) = static_cast<uint8>(0);
+					(*output++) = static_cast<uint8>(analog2);
+				}
+				else if(m_gameId == "timecrs4")
+				{
+					(*output++) = static_cast<uint8>(0);
+					(*output++) = static_cast<uint8>(analog0);
+					(*output++) = static_cast<uint8>(0);
+					(*output++) = static_cast<uint8>(analog2);
+				}
+				else
+				{
+					(*output++) = static_cast<uint8>(analog0);
+					(*output++) = static_cast<uint8>(0);
+					(*output++) = static_cast<uint8>(analog2);
+					(*output++) = static_cast<uint8>(0);
+				}
+			}
+			else
+			{
+				(*output++) = static_cast<uint8>(analog4);
+				(*output++) = static_cast<uint8>(0);
+				(*output++) = static_cast<uint8>(analog6);
+				(*output++) = static_cast<uint8>(0);
+			}
 
 			(*dstSize) += 5;
 		}

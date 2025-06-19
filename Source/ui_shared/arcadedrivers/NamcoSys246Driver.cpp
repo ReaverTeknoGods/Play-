@@ -15,6 +15,11 @@
 #include "iop/namco_sys246/Iop_NamcoAcCdvd.h"
 #include "iop/namco_sys246/Iop_NamcoAcRam.h"
 #include "iop/namco_sys246/Iop_NamcoPadMan.h"
+#include "../ArcadeDiskCache.h"
+
+// Static cache members
+std::unordered_map<std::string, std::vector<uint8>> CNamcoSys246Driver::s_dongleCache;
+std::mutex CNamcoSys246Driver::s_dongleCacheMutex;
 
 void CNamcoSys246Driver::PrepareEnvironment(CPS2VM* virtualMachine, const ARCADE_MACHINE_DEF& def)
 {
@@ -26,8 +31,14 @@ void CNamcoSys246Driver::PrepareEnvironment(CPS2VM* virtualMachine, const ARCADE
 	{
 		fs::path cdvdPath = LocateImageFile(def, def.cdvdFileName);
 
-		//Try to create the optical media for sanity checks (will throw exceptions on errors).
-		DiskUtils::CreateOpticalMediaFromPath(cdvdPath);
+		// Optimized: Use cached optical media validation for arcade systems
+		// This avoids the expensive optical media creation on every launch
+		std::string cachedDiskId;
+		if(!CArcadeDiskCache::GetInstance().GetCachedDiskId(cdvdPath, &cachedDiskId))
+		{
+			//Try to create the optical media for sanity checks (will throw exceptions on errors).
+			DiskUtils::CreateOpticalMediaFromPath(cdvdPath);
+		}
 
 		CAppConfig::GetInstance().SetPreferencePath(PREF_PS2_CDROM0_PATH, cdvdPath);
 
@@ -116,16 +127,20 @@ void CNamcoSys246Driver::PrepareEnvironment(CPS2VM* virtualMachine, const ARCADE
 				break;
 			}
 		}
-	}
-
+	}	// Optimized frequency scaling for arcade systems
 	virtualMachine->SetEeFrequencyScale(def.eeFreqScaleNumerator, def.eeFreqScaleDenominator);
 	if((def.eeFreqScaleNumerator != 1) || (def.eeFreqScaleDenominator != 1))
 	{
-		//Adjust SPU sampling rate with EE frequency scale. Not quite sure this is right.
+		//Adjust SPU sampling rate with EE frequency scale. Pre-calculate to avoid repeated computation.
 		uint32 baseSamplingRate = Iop::Spu2::CCore::DEFAULT_BASE_SAMPLING_RATE * def.eeFreqScaleNumerator / def.eeFreqScaleDenominator;
-		virtualMachine->m_iop->m_spu2.GetCore(0)->SetBaseSamplingRate(baseSamplingRate);
-		virtualMachine->m_iop->m_spu2.GetCore(1)->SetBaseSamplingRate(baseSamplingRate);
+		auto spu2Core0 = virtualMachine->m_iop->m_spu2.GetCore(0);
+		auto spu2Core1 = virtualMachine->m_iop->m_spu2.GetCore(1);
+		spu2Core0->SetBaseSamplingRate(baseSamplingRate);
+		spu2Core1->SetBaseSamplingRate(baseSamplingRate);
 	}
+	
+	// Enable arcade-specific optimizations
+	virtualMachine->m_ee->EnableArcadeOptimizations();
 }
 
 void CNamcoSys246Driver::Launch(CPS2VM* virtualMachine, const ARCADE_MACHINE_DEF& def)
@@ -136,6 +151,17 @@ void CNamcoSys246Driver::Launch(CPS2VM* virtualMachine, const ARCADE_MACHINE_DEF
 
 std::vector<uint8> CNamcoSys246Driver::ReadDongleData(const ARCADE_MACHINE_DEF& def)
 {
+	// Check cache first
+	std::string cacheKey = def.id + "_" + def.dongleFileName;
+	{
+		std::lock_guard<std::mutex> lock(s_dongleCacheMutex);
+		auto it = s_dongleCache.find(cacheKey);
+		if (it != s_dongleCache.end())
+		{
+			return it->second; // Return cached data
+		}
+	}
+
 	struct DONGLE_SEARCH_INFO
 	{
 		std::string archiveFileName;
@@ -164,9 +190,15 @@ std::vector<uint8> CNamcoSys246Driver::ReadDongleData(const ARCADE_MACHINE_DEF& 
 				continue;
 			}
 			auto fileStream = archiveReader.BeginReadFile(dongleSearchInfo.donglePath.c_str());
-			std::vector<uint8> dongleData;
-			dongleData.resize(header->uncompressedSize);
+			std::vector<uint8> dongleData;			dongleData.resize(header->uncompressedSize);
 			fileStream->Read(dongleData.data(), header->uncompressedSize);
+			
+			// Cache the dongle data for future use
+			{
+				std::lock_guard<std::mutex> lock(s_dongleCacheMutex);
+				s_dongleCache[cacheKey] = dongleData;
+			}
+			
 			return dongleData;
 		}
 		catch(...)

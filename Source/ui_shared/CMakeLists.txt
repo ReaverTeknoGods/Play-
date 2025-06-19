@@ -54,6 +54,8 @@ set(SHARED_UI_SRC_FILES
 	arcadedrivers/NamcoSys246Driver.cpp
 	arcadedrivers/NamcoSys246Driver.h
 	ArcadeDefinition.h
+	ArcadeDiskCache.cpp
+	ArcadeDiskCache.h
 	ArcadeUtils.cpp
 	ArcadeUtils.h
 	BootablesDbClient.cpp
