@@ -94,3 +94,18 @@ add_subdirectory(tools/NamcoSys147NANDTools)
 if(BUILD_PSFPLAYER)
 	add_subdirectory(tools/PsfPlayer)
 endif(BUILD_PSFPLAYER)
+
+# Add these optimization flags
+if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    # Enable Link-Time Optimization
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT supported OUTPUT error)
+    
+    if(supported)
+        set_property(TARGET Play PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+        set_property(TARGET PlayCore PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+        message(STATUS "IPO/LTO enabled")
+    else()
+        message(STATUS "IPO/LTO not supported: <${error}>")
+    endif()
+endif()

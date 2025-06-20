@@ -822,7 +822,7 @@ void MainWindow::EmitOnExecutableChange()
 void MainWindow::HandleOnExecutableChange()
 {
 	UpdateUI();
-	auto titleString = QString("Play! - [ %1 ] - %2").arg(m_virtualMachine->m_ee->m_os->GetExecutableName(), QString(PLAY_VERSION));
+	auto titleString = QString("Play! - [ %1 ] - TeknoParrot").arg(m_virtualMachine->m_ee->m_os->GetExecutableName(), QString(PLAY_VERSION));
 	setWindowTitle(titleString);
 	ui->bootablesView->AsyncResetModel(true);
 }

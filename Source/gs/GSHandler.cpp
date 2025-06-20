@@ -48,6 +48,8 @@
 #define STATE_PRIVREGS_DISPLAY1 ("DISPLAY1")
 #define STATE_PRIVREGS_DISPFB2 ("DISPFB2")
 #define STATE_PRIVREGS_DISPLAY2 ("DISPLAY2")
+#define STATE_PRIVREGS_EXTBUF ("EXTBUF")
+#define STATE_PRIVREGS_EXTDATA ("EXTDATA")
 #define STATE_PRIVREGS_CSR ("CSR")
 #define STATE_PRIVREGS_IMR ("IMR")
 #define STATE_PRIVREGS_BUSDIR ("BUSDIR")
@@ -160,9 +162,10 @@ void CGSHandler::ResetBase()
 	m_nDISPLAY1.heldValue = 0;
 	m_nDISPLAY1.value.q = 0x1BF9FF72617467;
 	m_nDISPFB2.heldValue = 0;
-	m_nDISPFB2.value.q = 0;
-	m_nDISPLAY2.heldValue = 0;
+	m_nDISPFB2.value.q = 0;	m_nDISPLAY2.heldValue = 0;
 	m_nDISPLAY2.value.q = 0x1BF9FF72617467;
+	m_nEXTBUF = 0;
+	m_nEXTDATA = 0;
 	m_nCSR = CSR_FIFO_EMPTY | (GS_REVISION << 16);
 	m_nIMR = ~0;
 	m_nBUSDIR = 0;
@@ -268,9 +271,10 @@ void CGSHandler::SaveState(Framework::CZipArchiveWriter& archive)
 		registerFile->SetRegister64(STATE_PRIVREGS_PMODE, m_nPMODE);
 		registerFile->SetRegister64(STATE_PRIVREGS_SMODE2, m_nSMODE2);
 		registerFile->SetRegister64(STATE_PRIVREGS_DISPFB1, m_nDISPFB1.value.q);
-		registerFile->SetRegister64(STATE_PRIVREGS_DISPLAY1, m_nDISPLAY1.value.q);
-		registerFile->SetRegister64(STATE_PRIVREGS_DISPFB2, m_nDISPFB2.value.q);
+		registerFile->SetRegister64(STATE_PRIVREGS_DISPLAY1, m_nDISPLAY1.value.q);		registerFile->SetRegister64(STATE_PRIVREGS_DISPFB2, m_nDISPFB2.value.q);
 		registerFile->SetRegister64(STATE_PRIVREGS_DISPLAY2, m_nDISPLAY2.value.q);
+		registerFile->SetRegister64(STATE_PRIVREGS_EXTBUF, m_nEXTBUF);
+		registerFile->SetRegister64(STATE_PRIVREGS_EXTDATA, m_nEXTDATA);
 		registerFile->SetRegister64(STATE_PRIVREGS_CSR, m_nCSR);
 		registerFile->SetRegister64(STATE_PRIVREGS_IMR, m_nIMR);
 		registerFile->SetRegister64(STATE_PRIVREGS_BUSDIR, m_nBUSDIR);
@@ -294,9 +298,10 @@ void CGSHandler::LoadState(Framework::CZipArchiveReader& archive)
 		m_nPMODE = registerFile.GetRegister64(STATE_PRIVREGS_PMODE);
 		m_nSMODE2 = registerFile.GetRegister64(STATE_PRIVREGS_SMODE2);
 		m_nDISPFB1.value.q = registerFile.GetRegister64(STATE_PRIVREGS_DISPFB1);
-		m_nDISPLAY1.value.q = registerFile.GetRegister64(STATE_PRIVREGS_DISPLAY1);
-		m_nDISPFB2.value.q = registerFile.GetRegister64(STATE_PRIVREGS_DISPFB2);
+		m_nDISPLAY1.value.q = registerFile.GetRegister64(STATE_PRIVREGS_DISPLAY1);		m_nDISPFB2.value.q = registerFile.GetRegister64(STATE_PRIVREGS_DISPFB2);
 		m_nDISPLAY2.value.q = registerFile.GetRegister64(STATE_PRIVREGS_DISPLAY2);
+		m_nEXTBUF = registerFile.GetRegister64(STATE_PRIVREGS_EXTBUF);
+		m_nEXTDATA = registerFile.GetRegister64(STATE_PRIVREGS_EXTDATA);
 		m_nCSR = registerFile.GetRegister64(STATE_PRIVREGS_CSR);
 		m_nIMR = registerFile.GetRegister64(STATE_PRIVREGS_IMR);
 		m_nBUSDIR = registerFile.GetRegister64(STATE_PRIVREGS_BUSDIR);
@@ -321,9 +326,10 @@ void CGSHandler::Copy(CGSHandler* source)
 		m_nPMODE = source->m_nPMODE;
 		m_nSMODE2 = source->m_nSMODE2;
 		m_nDISPFB1.value.q = source->m_nDISPFB1.value.q;
-		m_nDISPLAY1.value.q = source->m_nDISPLAY1.value.q;
-		m_nDISPFB2.value.q = source->m_nDISPFB2.value.q;
+		m_nDISPLAY1.value.q = source->m_nDISPLAY1.value.q;		m_nDISPFB2.value.q = source->m_nDISPFB2.value.q;
 		m_nDISPLAY2.value.q = source->m_nDISPLAY2.value.q;
+		m_nEXTBUF = source->m_nEXTBUF;
+		m_nEXTDATA = source->m_nEXTDATA;
 		m_nCSR = source->m_nCSR;
 		m_nIMR = source->m_nIMR;
 		m_nBUSDIR = source->m_nBUSDIR;
@@ -442,9 +448,14 @@ uint32 CGSHandler::ReadPrivRegister(uint32 nAddress)
 	break;
 	case GS_IMR:
 		R_REG(nAddress, nData, m_nIMR);
-		break;
-	case GS_SIGLBLID:
+		break;	case GS_SIGLBLID:
 		R_REG(nAddress, nData, m_nSIGLBLID);
+		break;
+	case GS_EXTBUF:
+		R_REG(nAddress, nData, m_nEXTBUF);
+		break;
+	case GS_EXTDATA:
+		R_REG(nAddress, nData, m_nEXTDATA);
 		break;
 	default:
 		CLog::GetInstance().Warn(LOG_NAME, "Read an unhandled priviledged register (0x%08X).\r\n", nAddress);
@@ -520,9 +531,14 @@ void CGSHandler::WritePrivRegister(uint32 nAddress, uint32 nData)
 		break;
 	case GS_BUSDIR:
 		W_REG(nAddress, nData, m_nBUSDIR);
-		break;
-	case GS_SIGLBLID:
+		break;	case GS_SIGLBLID:
 		W_REG(nAddress, nData, m_nSIGLBLID);
+		break;
+	case GS_EXTBUF:
+		W_REG(nAddress, nData, m_nEXTBUF);
+		break;
+	case GS_EXTDATA:
+		W_REG(nAddress, nData, m_nEXTDATA);
 		break;
 	default:
 		CLog::GetInstance().Warn(LOG_NAME, "Wrote to an unhandled priviledged register (0x%08X, 0x%08X).\r\n", nAddress, nData);

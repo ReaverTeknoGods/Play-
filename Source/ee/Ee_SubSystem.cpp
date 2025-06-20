@@ -446,10 +446,15 @@ uint32 CSubSystem::IOPortReadHandler(uint32 nAddress)
 	else if(nAddress >= 0x10008000 && nAddress <= 0x1000EFFC)
 	{
 		nReturn = m_dmac.GetRegister(nAddress);
-	}
-	else if(nAddress >= 0x1000F000 && nAddress <= 0x1000F01C)
+	}	else if(nAddress >= 0x1000F000 && nAddress <= 0x1000F01C)
 	{
 		nReturn = m_intc.GetRegister(nAddress);
+	}
+	else if(nAddress >= 0x1000F130 && nAddress <= 0x1000F13F)
+	{
+		// Arcade hardware register range (Time Crisis 3, etc.)
+		// Return default value to avoid spamming logs
+		nReturn = 0;
 	}
 	else if(nAddress >= 0x1000F520 && nAddress <= 0x1000F59C)
 	{
@@ -545,10 +550,14 @@ uint32 CSubSystem::IOPortWriteHandler(uint32 nAddress, uint32 nData)
 	{
 		m_dmac.SetRegister(nAddress, nData);
 		ExecuteIpu();
-	}
-	else if(nAddress >= 0x1000F000 && nAddress <= 0x1000F01C)
+	}	else if(nAddress >= 0x1000F000 && nAddress <= 0x1000F01C)
 	{
 		m_intc.SetRegister(nAddress, nData);
+	}
+	else if(nAddress >= 0x1000F130 && nAddress <= 0x1000F13F)
+	{
+		// Arcade hardware register range (Time Crisis 3, etc.)
+		// Silently accept writes to avoid spamming logs
 	}
 	else if(nAddress == 0x1000F180)
 	{

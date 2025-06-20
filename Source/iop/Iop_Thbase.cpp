@@ -256,9 +256,12 @@ void CThbase::Invoke(CMIPS& context, unsigned int functionId)
 		break;
 	case 42:
 		context.m_State.nGPR[CMIPS::V0].nD0 = static_cast<int32>(GetCurrentThreadPriority());
-		break;
-	case 43:
+		break;	case 43:
 		context.m_State.nGPR[CMIPS::V0].nD0 = static_cast<int32>(GetSystemTimeLow());
+		break;
+	case 44:
+		// SetCurrentThreadPriority or similar - stub for arcade games (Time Crisis 3)
+		context.m_State.nGPR[CMIPS::V0].nD0 = 0; // Success
 		break;
 	case 47:
 		context.m_State.nGPR[CMIPS::V0].nD0 = static_cast<int32>(GetThreadmanIdList(

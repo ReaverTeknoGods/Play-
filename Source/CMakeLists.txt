@@ -571,6 +571,18 @@ target_include_directories(PlayCore
 )
 target_compile_definitions(PlayCore PUBLIC ${DEFINITIONS_LIST})
 
+# Add optimized compiler flags for graphics-heavy code
+if(MSVC)
+    # Enable advanced SIMD instructions
+    target_compile_options(PlayCore PRIVATE 
+        $<$<CONFIG:Release>:/arch:AVX2>
+        $<$<CONFIG:Release>:/Oi>      # Enable intrinsic functions
+        $<$<CONFIG:Release>:/Ot>      # Favor speed over size
+        $<$<CONFIG:Release>:/GL>      # Whole program optimization
+        $<$<CONFIG:Release>:/fp:fast> # Fast floating point
+    )
+endif()
+
 if(TARGET_PLATFORM_WIN32)
 	add_precompiled_header(PlayCore Pch.h FORCEINCLUDE SOURCE_CXX Pch.cpp)
 endif()

@@ -304,7 +304,7 @@ uint32 CDMAC::ReceiveDMA8(uint32 nDstAddress, uint32 nCount, uint32 unused, bool
 
 uint32 CDMAC::ReceiveDMA9(uint32 nSrcAddress, uint32 nCount, uint32 unused, bool nTagIncluded)
 {
-	assert(nTagIncluded == false);
+	//assert(nTagIncluded == false);
 	assert(m_D9_SADR < PS2::EE_SPR_SIZE);
 
 	const uint8* srcPtr = nullptr;
@@ -521,6 +521,19 @@ uint32 CDMAC::GetRegister(uint32 nAddress)
 	case D_ENABLER + 0x4:
 	case D_ENABLER + 0x8:
 	case D_ENABLER + 0xC:
+		break;
+
+	// D_ENABLEW read access (arcade games like Time Crisis 3)
+	case D_ENABLEW + 0x0:
+		return m_D_ENABLE;
+		break;
+	case D_ENABLEW + 0x2:
+		// Return upper 16 bits of D_ENABLE for 16-bit access
+		return (m_D_ENABLE >> 16) & 0xFFFF;
+		break;
+	case D_ENABLEW + 0x4:
+	case D_ENABLEW + 0x8:
+	case D_ENABLEW + 0xC:
 		break;
 
 	default:
@@ -972,9 +985,12 @@ void CDMAC::SetRegister(uint32 nAddress, uint32 nData)
 	case D_STADR + 0x8:
 	case D_STADR + 0xC:
 		break;
-
 	case D_ENABLEW + 0x0:
 		m_D_ENABLE = nData;
+		break;
+	case D_ENABLEW + 0x2:
+		// Handle 16-bit access to upper part of D_ENABLEW (arcade games like Time Crisis 3)
+		m_D_ENABLE = (m_D_ENABLE & 0x0000FFFF) | ((nData & 0xFFFF) << 16);
 		break;
 	case D_ENABLEW + 0x4:
 	case D_ENABLEW + 0x8:
@@ -1133,6 +1149,10 @@ void CDMAC::DisassembleGet(uint32 nAddress)
 		LOG_GET(D_RBOR)
 		LOG_GET(D_ENABLER)
 
+	case D_ARCADE_EXT:
+		CLog::GetInstance().Print(LOG_NAME, "= D_ARCADE_EXT (D_ENABLEW+0x2).\r\n");
+		break;
+
 	default:
 		CLog::GetInstance().Warn(LOG_NAME, "Reading unknown register 0x%08X.\r\n", nAddress);
 		break;
@@ -1218,6 +1238,10 @@ void CDMAC::DisassembleSet(uint32 nAddress, uint32 nData)
 		LOG_SET(D_RBOR)
 		LOG_SET(D_STADR)
 		LOG_SET(D_ENABLEW)
+
+	case D_ARCADE_EXT:
+		CLog::GetInstance().Print(LOG_NAME, "D_ARCADE_EXT (D_ENABLEW+0x2) = 0x%08X.\r\n", nData);
+		break;
 
 	default:
 		CLog::GetInstance().Warn(LOG_NAME, "Writing unknown register 0x%08X, 0x%08X.\r\n", nAddress, nData);

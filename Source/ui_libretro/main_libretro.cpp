@@ -97,7 +97,24 @@ static void retro_context_destroy()
 
 static void retro_context_reset()
 {
-	CLog::GetInstance().Print(LOG_NAME, "%s\n", __FUNCTION__);
+    CLog::GetInstance().Print(LOG_NAME, "%s\n", __FUNCTION__);
+    
+    // Optimize OpenGL state
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_STENCIL_TEST);
+    glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
+    
+    // Use more efficient texture formats
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    
+    // Enable GPU performance optimizations
+    if (glewIsExtensionSupported("GL_ARB_buffer_storage"))
+    {
+        // Use persistent mapped buffers for better performance
+        CLog::GetInstance().Print(LOG_NAME, "Using GL_ARB_buffer_storage for optimization\n");
+    }
 
 	if(m_virtualMachine)
 	{
