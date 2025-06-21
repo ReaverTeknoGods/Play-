@@ -166,17 +166,17 @@ void CSys246::Invoke(CMIPS& context, unsigned int functionId)
 
 void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 {
-	// Add CPU throttling to prevent 100% usage
-    static auto lastProcessTime = std::chrono::steady_clock::now();
-    auto currentTime = std::chrono::steady_clock::now();
-    auto timeDiff = std::chrono::duration_cast<std::chrono::microseconds>(currentTime - lastProcessTime);
-    
-    // Throttle to realistic JVS communication speed (e.g., 115200 baud = ~11.5KB/s)
-    if (timeDiff.count() < 100) // 100 microseconds minimum between packets
-    {
-        std::this_thread::sleep_for(std::chrono::microseconds(100 - timeDiff.count()));
-    }
-    lastProcessTime = std::chrono::steady_clock::now();
+	//// Add CPU throttling to prevent 100% usage
+ //   static auto lastProcessTime = std::chrono::steady_clock::now();
+ //   auto currentTime = std::chrono::steady_clock::now();
+ //   auto timeDiff = std::chrono::duration_cast<std::chrono::microseconds>(currentTime - lastProcessTime);
+ //   
+ //   // Throttle to realistic JVS communication speed (e.g., 115200 baud = ~11.5KB/s)
+ //   if (timeDiff.count() < 100) // 100 microseconds minimum between packets
+ //   {
+ //       std::this_thread::sleep_for(std::chrono::microseconds(100 - timeDiff.count()));
+ //   }
+ //   lastProcessTime = std::chrono::steady_clock::now();
 	assert(*input == JVS_SYNC);
 	input++;
 	uint8 inDest = *input++;
