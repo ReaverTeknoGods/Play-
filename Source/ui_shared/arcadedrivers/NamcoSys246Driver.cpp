@@ -8,6 +8,7 @@
 #include "StdStreamUtils.h"
 #include "DiskUtils.h"
 #include "hdd/HddDefs.h"
+#include "hdd/ApaDefs.h"
 #include "discimages/ChdImageStream.h"
 #include "iop/ioman/McDumpDevice.h"
 #include "iop/ioman/HardDiskDumpDevice.h"
@@ -57,10 +58,23 @@ void CNamcoSys246Driver::PrepareEnvironment(CPS2VM* virtualMachine, const ARCADE
 			throw std::runtime_error(string_format("Sector size mismatch in HDD image file ('%s'). Make sure the CHD file was created with the 'createhd' option.", def.hddFileName.c_str()));
 		}
 
-		auto device = std::make_shared<Iop::Ioman::CHardDiskDumpDevice>(std::move(imageStream));
-
 		auto iopBios = dynamic_cast<CIopBios*>(virtualMachine->m_iop->m_bios.get());
-		iopBios->GetIoman()->RegisterDevice("hdd0", device);
+
+		Hdd::APA_HEADER apaHeader;
+		imageStream->Read(&apaHeader, sizeof(Hdd::APA_HEADER));
+		imageStream->Seek(0, Framework::STREAM_SEEK_SET);
+		if(apaHeader.magic == Hdd::APA_HEADER_MAGIC)
+		{
+			auto device = std::make_shared<Iop::Ioman::CHardDiskDumpDevice>(std::move(imageStream));
+			iopBios->GetIoman()->RegisterDevice("hdd0", device);
+		}
+		else
+		{
+			//This probably has a custom filesystem, so, register the AC ATA module for raw access
+			auto acAtaModule = std::make_shared<Iop::Namco::CAcAta>(*iopBios, virtualMachine->m_iop->m_ram);
+			acAtaModule->SetHddStream(std::move(imageStream));
+			iopBios->RegisterModule(acAtaModule);
+		}
 	}
 
 	//Override mc0 device with special device reading directly from zip file
@@ -94,9 +108,6 @@ void CNamcoSys246Driver::PrepareEnvironment(CPS2VM* virtualMachine, const ARCADE
 		auto padManModule = std::make_shared<Iop::Namco::CPadMan>();
 		iopBios->RegisterHleModuleReplacement("rom0:PADMAN", padManModule);
 		iopBios->RegisterHleModuleReplacement("rom0:SIO2MAN", padManModule);
-
-		auto acAtaModule = std::make_shared<Iop::Namco::CAcAta>(*iopBios, virtualMachine->m_iop->m_ram);
-		iopBios->RegisterModule(acAtaModule);
 
 		{
 			auto namcoArcadeModule = std::make_shared<Iop::Namco::CSys246>(*iopBios->GetSifman(), *iopBios->GetSifcmd(), *acRam, def.id);
