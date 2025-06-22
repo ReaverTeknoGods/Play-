@@ -13,6 +13,7 @@ namespace Iop
 		public:
 			CAcAta(CIopBios&, uint8*);
 			virtual ~CAcAta() = default;
+			void SetHddStream(std::unique_ptr<Framework::CStream>);
 
 			std::string GetId() const override;
 			std::string GetFunctionName(unsigned int) const override;
@@ -24,6 +25,8 @@ namespace Iop
 
 			CIopBios& m_bios;
 			uint8* m_ram = nullptr;
+
+			std::unique_ptr<Framework::CStream> m_hddStream;
 		};
 	}
 }
