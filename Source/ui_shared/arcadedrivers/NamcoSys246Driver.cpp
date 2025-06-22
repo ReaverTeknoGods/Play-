@@ -13,6 +13,7 @@
 #include "iop/ioman/HardDiskDumpDevice.h"
 #include "iop/namco_sys246/Iop_NamcoSys246.h"
 #include "iop/namco_sys246/Iop_NamcoAcCdvd.h"
+#include "iop/namco_sys246/Iop_NamcoAcAta.h"
 #include "iop/namco_sys246/Iop_NamcoAcRam.h"
 #include "iop/namco_sys246/Iop_NamcoPadMan.h"
 #include "../ArcadeDiskCache.h"
@@ -93,6 +94,9 @@ void CNamcoSys246Driver::PrepareEnvironment(CPS2VM* virtualMachine, const ARCADE
 		auto padManModule = std::make_shared<Iop::Namco::CPadMan>();
 		iopBios->RegisterHleModuleReplacement("rom0:PADMAN", padManModule);
 		iopBios->RegisterHleModuleReplacement("rom0:SIO2MAN", padManModule);
+
+		auto acAtaModule = std::make_shared<Iop::Namco::CAcAta>(*iopBios, virtualMachine->m_iop->m_ram);
+		iopBios->RegisterModule(acAtaModule);
 
 		{
 			auto namcoArcadeModule = std::make_shared<Iop::Namco::CSys246>(*iopBios->GetSifman(), *iopBios->GetSifcmd(), *acRam, def.id);
