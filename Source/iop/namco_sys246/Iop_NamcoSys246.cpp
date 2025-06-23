@@ -9,7 +9,10 @@
 #include "PathUtils.h"
 #include "iop/Iop_SifCmd.h"
 #include "iop/namco_sys246/Iop_NamcoAcRam.h"
+#ifdef _WIN32
 #include "windows.h"
+#endif
+#include "PS2VM_Preferences.h"
 
 using namespace Iop;
 using namespace Iop::Namco;
@@ -21,7 +24,7 @@ using namespace Iop::Namco;
 #define STATE_SEND_ADDR ("sendAddr")
 
 #ifdef _WIN32
-static void *g_jvs_file_mapping = nullptr;
+static void* g_jvs_file_mapping = nullptr;
 static void* g_jvs_view_ptr = nullptr;
 static bool g_coin_pressed_prev_246;
 #endif
@@ -147,6 +150,8 @@ CSys246::CSys246(CSifMan& sifMan, CSifCmd& sifCmd, Namco::CAcRam& acRam, const s
 		}
 	}
 #endif
+
+	m_cabinetId = CAppConfig::GetInstance().GetPreferenceInteger(PREF_SYS256_CABINET_LINK_ID);
 }
 
 std::string CSys246::GetId() const
@@ -350,7 +355,7 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 			BYTE control1ext = 0;
 			BYTE control2 = 0;
 			BYTE control2ext = 0;
-			#ifdef _WIN32
+#ifdef _WIN32
 			if(g_jvs_view_ptr)
 			{
 				testData = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 8);
@@ -358,8 +363,13 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 				control1ext = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 10);
 				control2 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 11);
 				control2ext = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 12);
+
+				if(m_gameId == "timecrs3" && m_cabinetId == 2)
+				{
+					control1ext |= 0x40;
+				}
 			}
-			#endif
+#endif
 
 			m_counter++;
 
@@ -382,7 +392,7 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 
 			if(playerCount == 2)
 			{
-				(*output++) = control2;                                     //Player 2
+				(*output++) = control2;    //Player 2
 				(*output++) = control2ext; //Player 2
 				(*dstSize) += 2;
 			}
@@ -466,30 +476,30 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 		}
 		break;
 		case 0x37: // JVS_CMD_GENERALOUTPUT2
-        {
-            // Read the number of bytes to process
-            assert(inSize >= 1);
-            uint8 byteCount = (*input++);
-            inWorkChecksum += byteCount;
-            inSize--;
-            
-            // Process the output data bytes
-            for(int i = 0; i < byteCount; i++)
-            {
-                assert(inSize > 0);
-                uint8 outputData = (*input++);
-                inWorkChecksum += outputData;
-                inSize--;
-                
-                // Handle the output data as needed
-                // This could control LEDs, lamps, or other arcade hardware
-                // For now, we'll just acknowledge the command
-            }
-            
-            (*output++) = 0x01; // Command success
-            (*dstSize) += 1;
-        }
-        break;
+		{
+			// Read the number of bytes to process
+			assert(inSize >= 1);
+			uint8 byteCount = (*input++);
+			inWorkChecksum += byteCount;
+			inSize--;
+
+			// Process the output data bytes
+			for(int i = 0; i < byteCount; i++)
+			{
+				assert(inSize > 0);
+				uint8 outputData = (*input++);
+				inWorkChecksum += outputData;
+				inSize--;
+
+				// Handle the output data as needed
+				// This could control LEDs, lamps, or other arcade hardware
+				// For now, we'll just acknowledge the command
+			}
+
+			(*output++) = 0x01; // Command success
+			(*dstSize) += 1;
+		}
+		break;
 		case JVS_CMD_COINDEC: // actually never received this jvs cmd
 		{
 			assert(inSize != 3);
@@ -519,7 +529,7 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 
 			(*output++) = 0x01; //Command success
 
-			#ifdef _WIN32
+#ifdef _WIN32
 			BYTE analog0 = 0;
 			BYTE analog2 = 0;
 			BYTE analog4 = 0;
@@ -531,7 +541,7 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 				analog4 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 15);
 				analog6 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 16);
 			}
-			#endif
+#endif
 
 			if(m_jvsMode == JVS_MODE::LIGHTGUN)
 			{
@@ -545,7 +555,6 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 					(*output++) = static_cast<uint8>(0);
 					(*output++) = static_cast<uint8>(analog6);
 					(*output++) = static_cast<uint8>(0);
-
 				}
 				else if(m_gameId == "timecrs4")
 				{
@@ -615,9 +624,9 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 			}
 #endif
 			(*output++) = 0x01; //Command success
-			if (channel == 1)
+			if(channel == 1)
 			{
-				if (m_gameId == "timecrs3")
+				if(m_gameId == "timecrs3")
 				{
 					// TPs coordinates need to be inverted
 					float gunX = static_cast<float>(255 - analog2) / 255.0f;
@@ -628,7 +637,6 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 					(*output++) = static_cast<uint8>(m_jvsScreenPosX);      //Pos X LSB
 					(*output++) = static_cast<uint8>(m_jvsScreenPosY >> 8); //Pos Y MSB
 					(*output++) = static_cast<uint8>(m_jvsScreenPosY);      //Pos Y LSB
-			
 				}
 				else if(m_gameId == "timecrs4")
 				{
@@ -768,7 +776,7 @@ void CSys246::SetButtonState(unsigned int padNumber, PS2::CControllerInfo::BUTTO
 			if(pktId != 0)
 			{
 				// Reduce log spam for arcade games - only log unknown/unusual packet IDs
-				if(pktId != 0x3707)  // 0x3707 is common for Time Crisis 3, don't spam
+				if(pktId != 0x3707) // 0x3707 is common for Time Crisis 3, don't spam
 				{
 					CLog::GetInstance().Warn(LOG_NAME, "PktId: 0x%04X\r\n", pktId);
 				}
@@ -828,7 +836,7 @@ void CSys246::ReleaseScreenPosition()
 }
 
 bool CSys246::Invoke001(uint32 method, uint32* args, uint32 argsSize, uint32* ret, uint32 retSize, uint8* ram)
-{	//JVIO stuff?
+{ //JVIO stuff?
 	//method 0x01 -> ??? called once upon idolm@ster's startup. args[2] == 0x001, args[3] == 0x2000.
 	switch(method)
 	{
