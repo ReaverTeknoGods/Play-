@@ -10,6 +10,8 @@ CFrameLimiter::CFrameLimiter()
 {
 #ifdef _WIN32
 	timeBeginPeriod(1);
+	// Create timer once and reuse it later to save a tiny bit of cycles
+	m_hWaitableTimer = CreateWaitableTimer(NULL, TRUE, NULL);
 #endif
 	for(uint32 i = 0; i < MAX_FRAMETIMES; i++)
 	{
@@ -21,6 +23,11 @@ CFrameLimiter::~CFrameLimiter()
 {
 #ifdef _WIN32
 	timeEndPeriod(1);
+	if(m_hWaitableTimer)
+	{
+		CloseHandle(m_hWaitableTimer);
+		m_hWaitableTimer = nullptr;
+	}
 #endif
 }
 
@@ -58,11 +65,8 @@ void CFrameLimiter::EndFrame()
 		{
 			LARGE_INTEGER ft = {};
 			ft.QuadPart = -static_cast<int64>(delay.count() * 10);
-
-			HANDLE timer = CreateWaitableTimer(NULL, TRUE, NULL);
-			SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
-			WaitForSingleObject(timer, INFINITE);
-			CloseHandle(timer);
+			SetWaitableTimer(m_hWaitableTimer, &ft, 0, NULL, NULL, 0);
+			WaitForSingleObject(m_hWaitableTimer, INFINITE);
 		}
 #elif defined(__APPLE__) || defined(__EMSCRIPTEN__)
 		//Sleeping for the whole delay on some platforms doesn't provide a good enough resolution
