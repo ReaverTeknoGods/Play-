@@ -166,17 +166,6 @@ void CSys246::Invoke(CMIPS& context, unsigned int functionId)
 
 void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 {
-	//// Add CPU throttling to prevent 100% usage
- //   static auto lastProcessTime = std::chrono::steady_clock::now();
- //   auto currentTime = std::chrono::steady_clock::now();
- //   auto timeDiff = std::chrono::duration_cast<std::chrono::microseconds>(currentTime - lastProcessTime);
- //   
- //   // Throttle to realistic JVS communication speed (e.g., 115200 baud = ~11.5KB/s)
- //   if (timeDiff.count() < 100) // 100 microseconds minimum between packets
- //   {
- //       std::this_thread::sleep_for(std::chrono::microseconds(100 - timeDiff.count()));
- //   }
- //   lastProcessTime = std::chrono::steady_clock::now();
 	assert(*input == JVS_SYNC);
 	input++;
 	uint8 inDest = *input++;
@@ -630,61 +619,16 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 			{
 				if (m_gameId == "timecrs3")
 				{
-					(*output++) = static_cast<uint8>(0);
-					(*output++) = static_cast<uint8>(analog0);
-					(*output++) = static_cast<uint8>(0);
-					(*output++) = static_cast<uint8>(analog2);
-					//(*output++) = static_cast<uint8>(m_jvsScreenPosX >> 8); //Pos X MSB
-					//(*output++) = static_cast<uint8>(m_jvsScreenPosX);      //Pos X LSB
-					//(*output++) = static_cast<uint8>(m_jvsScreenPosY >> 8); //Pos Y MSB
-					//(*output++) = static_cast<uint8>(m_jvsScreenPosY);      //Pos Y LSB
-					//(*output++) = static_cast<uint8>(0);
-					//(*output++) = static_cast<uint8>(analog0);
-					//(*output++) = static_cast<uint8>(0);
-					//(*output++) = static_cast<uint8>(analog2);
-					// Target range for JVS X and Y
-					//const uint16_t xMin = 0x3EB5;
-					//const uint16_t xMax = 0x4149;
-					//const uint16_t yMin = 0x3F91;
-					//const uint16_t yMax = 0x406D;
-
-					//// Adjust analog2 (horizontal) to compensate for 4:3 aspect ratio
-					//// 3840 * 0.125 = 480px → 480 / 3840 = 0.125 → 0.125 * 255 ≈ 32
-					//// 3840 * 0.75 = 2880px → 2880 / 3840 = 0.75 → 0.75 * 255 ≈ 191
-					//int analog2_adjusted = analog2 - 32;
-					//if(analog2_adjusted < 0) analog2_adjusted = 0;
-					//if(analog2_adjusted > 191) analog2_adjusted = 191;
-					//analog2_adjusted = (analog2_adjusted * 255) / 191;
-
-					//// analog0 (vertical) remains unchanged
-					//int analog0_adjusted = analog0;
-
-					//// Map to JVS coordinates (inverted if needed)
-					//uint16_t mappedX = static_cast<uint16_t>(xMax - ((xMax - xMin) * (analog2_adjusted / 255.0f)));
-					//uint16_t mappedY = static_cast<uint16_t>(yMax - ((yMax - yMin) * (analog0_adjusted / 255.0f)));
-
-					//// Output
-					//(*output++) = static_cast<uint8_t>(mappedX >> 8);
-					//(*output++) = static_cast<uint8_t>(mappedX);
-					//(*output++) = static_cast<uint8_t>(mappedY >> 8);
-					//(*output++) = static_cast<uint8_t>(mappedY);
-
-					//(*output++) = static_cast<uint8_t>(m_jvsScreenPosX >> 8); // X MSB
-					//(*output++) = static_cast<uint8_t>(m_jvsScreenPosX);      // X LSB
-					//(*output++) = static_cast<uint8_t>(m_jvsScreenPosY >> 8); // Y MSB
-					//(*output++) = static_cast<uint8_t>(m_jvsScreenPosY);      // Y LSB
-
-					//static char packageData[256] = {0};
-					//BYTE data1 = m_jvsScreenPosX >> 8;
-					//BYTE data2 = m_jvsScreenPosX;
-					//BYTE data3 = m_jvsScreenPosY >> 8;
-					//BYTE data4 = m_jvsScreenPosY;
-					//BYTE data5 = mappedX >> 8;
-					//BYTE data6 = mappedX;
-					//BYTE data7 = mappedY >> 8;
-					//BYTE data8 = mappedY;
-					//sprintf(packageData, "JVS: %04x-%04x, MYEMU: %04x-%04x", m_jvsScreenPosX, m_jvsScreenPosY, mappedX, mappedY);
-					//OutputDebugStringA(packageData);
+					// TPs coordinates need to be inverted
+					float gunX = static_cast<float>(255 - analog2) / 255.0f;
+					float gunY = static_cast<float>(255 - analog0) / 255.0f;
+					m_jvsScreenPosX = static_cast<int16>((gunX * m_screenPosXform[0]) + m_screenPosXform[1]);
+					m_jvsScreenPosY = static_cast<int16>((gunY * m_screenPosXform[2]) + m_screenPosXform[3]);
+					(*output++) = static_cast<uint8>(m_jvsScreenPosX >> 8); //Pos X MSB
+					(*output++) = static_cast<uint8>(m_jvsScreenPosX);      //Pos X LSB
+					(*output++) = static_cast<uint8>(m_jvsScreenPosY >> 8); //Pos Y MSB
+					(*output++) = static_cast<uint8>(m_jvsScreenPosY);      //Pos Y LSB
+			
 				}
 				else if(m_gameId == "timecrs4")
 				{
@@ -967,6 +911,7 @@ bool CSys246::Invoke003(uint32 method, uint32* args, uint32 argsSize, uint32* re
 {
 	//method 0x02 -> jvsif_starts
 	//method 0x04 -> jvsif_registers
+	//method 0x05 -> jvsif_request (RRV)
 	//Brake and Gaz pedals control?
 	switch(method)
 	{
@@ -1073,7 +1018,9 @@ void CSys246::ProcessMemRequest(uint8* ram, uint32 infoPtr)
 			//0x80 -> Test Mode
 			//0x40 -> Output Level (Voltage) of Video Signal			//0x20 -> Monitor Sync Frequency (1: 31Khz or 0: 15Khz)
 			//0x10 -> Video Sync Signal (1: Separate Sync or 0: Composite Sync)
-			//ram[recvDataPtr + 0x30] = 0;
+			// Forcing 31khz mode seems to work fine across games, and will set compatible games to progressive mode.
+			// Games like TC3 that do not support 31khz will still work in 15khz mode with these dipswitches it seems.
+			ram[recvDataPtr + 0x30] = 0x70;
 
 			uint16 pktId = sendData[0x0C];
 			if(pktId != 0)
