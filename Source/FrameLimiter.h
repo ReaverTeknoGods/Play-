@@ -28,4 +28,5 @@ private:
 	std::chrono::microseconds m_minFrameDuration = std::chrono::microseconds(0);
 	bool m_frameStarted = false;
 	TimePoint m_lastFrameTime;
+	void* m_hWaitableTimer = nullptr;
 };

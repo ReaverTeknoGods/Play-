@@ -888,28 +888,25 @@ bool CIPU::CINFIFO::TryPeekBits_LSBF(uint8 nBits, uint32& result)
 
 bool CIPU::CINFIFO::TryPeekBits_MSBF(uint8 size, uint32& result)
 {
-	assert(size != 0);
-	assert(size <= 32);
+    assert(size != 0);
+    assert(size <= 32);
 
-	int bitsAvailable = (m_size * 8) - m_bitPosition;
-	int bitsNeeded = size;
-	assert(bitsAvailable >= 0);
-	if(bitsAvailable < bitsNeeded)
-	{
-		return false;
-	}
+    int bitsAvailable = (m_size * 8) - m_bitPosition;
+    assert(bitsAvailable >= 0);
+    if(bitsAvailable < size)
+    {
+        return false;
+    }
 
-	if(m_lookupBitsDirty)
-	{
-		SyncLookupBits();
-		m_lookupBitsDirty = false;
-	}
+    if(m_lookupBitsDirty)
+    {
+        SyncLookupBits();
+        m_lookupBitsDirty = false;
+    }
 
-	uint8 shift = 64 - (m_bitPosition % 32) - size;
-	uint64 mask = ~0ULL >> (64 - size);
-	result = static_cast<uint32>((m_lookupBits >> shift) & mask);
-
-	return true;
+    uint32 shift = 64 - (m_bitPosition & 31) - size;
+    result = static_cast<uint32>((m_lookupBits >> shift) & ((1ULL << size) - 1));
+    return true;
 }
 
 void CIPU::CINFIFO::Advance(uint8 bits)
@@ -998,12 +995,24 @@ void CIPU::CINFIFO::LoadState(const char* regsFileName, Framework::CZipArchiveRe
 void CIPU::CINFIFO::SyncLookupBits()
 {
 	unsigned int lookupPosition = (m_bitPosition & ~0x1F) / 8;
-	uint8 lookupBytes[8];
-	for(unsigned int i = 0; i < 8; i++)
-	{
-		lookupBytes[7 - i] = m_buffer[lookupPosition + i];
-	}
-	m_lookupBits = *reinterpret_cast<uint64*>(lookupBytes);
+	uint64 val;
+	memcpy(&val, m_buffer + lookupPosition, sizeof(uint64));
+#if defined(__GNUC__) || defined(__clang__)
+	m_lookupBits = __builtin_bswap64(val);
+#elif defined(_MSC_VER)
+	m_lookupBits = _byteswap_uint64(val);
+#else
+	// Fallback
+	uint8* b = reinterpret_cast<uint8*>(&val);
+	m_lookupBits = (uint64(b[0]) << 56) |
+	               (uint64(b[1]) << 48) |
+	               (uint64(b[2]) << 40) |
+	               (uint64(b[3]) << 32) |
+	               (uint64(b[4]) << 24) |
+	               (uint64(b[5]) << 16) |
+	               (uint64(b[6]) << 8) |
+	               (uint64(b[7]) << 0);
+#endif
 }
 
 /////////////////////////////////////////////
@@ -1264,16 +1273,22 @@ void CIPU::CIDECCommand::ConvertRawBlock()
 {
 	//Convert block from RAW16 to RAW8
 	int16 blockData[CCSCCommand::BLOCK_SIZE];
+	uint8 convertedData[CCSCCommand::BLOCK_SIZE];
+
 	m_blockStream.Seek(0, Framework::STREAM_SEEK_SET);
 	m_blockStream.Read(blockData, CCSCCommand::BLOCK_SIZE * sizeof(int16));
-	m_blockStream.ResetBuffer();
+
 	for(uint32 i = 0; i < CCSCCommand::BLOCK_SIZE; i++)
 	{
 		int16 blockValue = blockData[i];
 		blockValue = std::max<int16>(blockValue, 0);
 		blockValue = std::min<int16>(blockValue, 255);
-		m_blockStream.Write8(static_cast<uint8>(blockValue));
+		convertedData[i] = static_cast<uint8>(blockValue);
 	}
+
+	// Write all of it in one go
+	m_blockStream.ResetBuffer();
+	m_blockStream.Write(convertedData, CCSCCommand::BLOCK_SIZE);
 }
 
 /////////////////////////////////////////////
