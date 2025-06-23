@@ -577,11 +577,14 @@ target_compile_definitions(PlayCore PUBLIC ${DEFINITIONS_LIST})
 if(MSVC)
     # Enable advanced SIMD instructions
     target_compile_options(PlayCore PRIVATE 
-        $<$<CONFIG:Release>:/arch:AVX2>
-        $<$<CONFIG:Release>:/Oi>      # Enable intrinsic functions
-        $<$<CONFIG:Release>:/Ot>      # Favor speed over size
+				$<$<CONFIG:Release>:/arch:SSE4.2>  # AVX2 is too new and will severely limit compatibility...
+        $<$<CONFIG:Release>:/O2>
         $<$<CONFIG:Release>:/GL>      # Whole program optimization
         $<$<CONFIG:Release>:/fp:fast> # Fast floating point
+				$<$<CONFIG:RelWithDebInfo>:/arch:SSE4.2> # same but for Release with debug info
+        $<$<CONFIG:RelWithDebInfo>:/O2>
+        $<$<CONFIG:RelWithDebInfo>:/GL>
+        $<$<CONFIG:RelWithDebInfo>:/fp:fast>
     )
 endif()
 
