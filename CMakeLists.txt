@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-set(PROJECT_Version 1.0.0.10)
+set(PROJECT_Version 1.0.0.11)
 string(REPLACE "." "," PROJECT_Version_RC ${PROJECT_Version})
 # macOS deployment target needs to be set before 'project' to work
 if(APPLE AND NOT TARGET_IOS)
