@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
-
+set(PROJECT_Version 1.0.0.10)
+string(REPLACE "." "," PROJECT_Version_RC ${PROJECT_Version})
 # macOS deployment target needs to be set before 'project' to work
 if(APPLE AND NOT TARGET_IOS)
 	set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version")
@@ -23,31 +24,31 @@ set(BUILD_AOT_CACHE OFF CACHE BOOL "Build AOT block cache (for PsfPlayer only)")
 set(BUILD_LIBRETRO_CORE OFF CACHE BOOL "Build Libretro Core")
 
 set(PROJECT_NAME "Play!")
-set(PROJECT_Version 0.30)
 
 if(BUILD_TESTS)
 	enable_testing()
 endif()
 
 find_package(Git)
-if(GIT_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git/")
-	execute_process(COMMAND ${GIT_EXECUTABLE} describe --always
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-		RESULT_VARIABLE GIT_DESCRIBE_RESULT
-		OUTPUT_VARIABLE GIT_TAG
-		OUTPUT_STRIP_TRAILING_WHITESPACE
-	)
-	if(GIT_DESCRIBE_RESULT EQUAL 0)
-		message("Building for ${GIT_TAG}.")
-		set(PROJECT_Version ${GIT_TAG})
-	else()
-		message("Warning: Failed to obtain Git tag.")
-	endif()
-else()
-	message("Warning: Not a git repo or git not found.")
-endif()
+# if(GIT_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git/")
+# 	execute_process(COMMAND ${GIT_EXECUTABLE} describe --always
+# 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+# 		RESULT_VARIABLE GIT_DESCRIBE_RESULT
+# 		OUTPUT_VARIABLE GIT_TAG
+# 		OUTPUT_STRIP_TRAILING_WHITESPACE
+# 	)
+# 	if(GIT_DESCRIBE_RESULT EQUAL 0)
+# 		message("Building for ${GIT_TAG}.")
+# 		set(PROJECT_Version ${GIT_TAG})
+# 	else()
+# 		message("Warning: Failed to obtain Git tag.")
+# 	endif()
+# else()
+# 	message("Warning: Not a git repo or git not found.")
+# endif()
 
 add_definitions(-DPLAY_VERSION="${PROJECT_Version}")
+add_definitions(-DPROJECT_Version_RC=${PROJECT_Version_RC})
 set(PROJECT_LIBS)
 
 include(PrecompiledHeader)
