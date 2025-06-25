@@ -54,8 +54,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,0
- PRODUCTVERSION 1,0,0,0
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -72,12 +72,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Virtual Applications"
             VALUE "FileDescription", "Play! - PlayStation2 Emulator"
-            VALUE "FileVersion", "1.0.0.0"
+VALUE "FileVersion", "1.0.0.0"
             VALUE "InternalName", "Play.exe"
             VALUE "LegalCopyright", "Copyright (C) 2006-2021, Virtual Applications"
             VALUE "OriginalFilename", "Play.exe"
             VALUE "ProductName", "Play! - PlayStation2 Emulator"
-            VALUE "ProductVersion", "1.0.0.0"
+VALUE "ProductVersion", "1.0.0.0"
         END
     END
     BLOCK "VarFileInfo"
