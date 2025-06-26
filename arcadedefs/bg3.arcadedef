@@ -4,7 +4,7 @@
 	"driver": "sys246",
 	"dongle":
 	{
-		"name": "bg3-dongle.bin"
+		"name": "batlgr3.ic002"
 	},
 	"hdd":
 	{
