@@ -51,6 +51,35 @@ add_definitions(-DPLAY_VERSION="${PROJECT_Version}")
 add_definitions(-DPROJECT_Version_RC=${PROJECT_Version_RC})
 set(PROJECT_LIBS)
 
+if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    # Enable Link-Time Optimization
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT supported OUTPUT error)
+    
+    if(supported)
+				set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+        message(STATUS "IPO/LTO enabled")
+    else()
+        message(STATUS "IPO/LTO not supported: <${error}>")
+    endif()
+
+		if(MSVC)
+        add_compile_options(
+            $<$<CONFIG:Release>:/arch:SSE4.2>
+            $<$<CONFIG:Release>:/O2>
+            $<$<CONFIG:Release>:/GL>
+            $<$<CONFIG:Release>:/fp:fast>
+            $<$<CONFIG:RelWithDebInfo>:/arch:SSE4.2>
+            $<$<CONFIG:RelWithDebInfo>:/O2>
+            $<$<CONFIG:RelWithDebInfo>:/GL>
+            $<$<CONFIG:RelWithDebInfo>:/fp:fast>
+        )
+        add_link_options(/LTCG:INCREMENTAL)
+        message(STATUS "MSVC optimizations enabled globally")
+    endif()
+endif()
+
+
 include(PrecompiledHeader)
 
 if(BUILD_LIBRETRO_CORE)
@@ -95,18 +124,3 @@ add_subdirectory(tools/NamcoSys147NANDTools)
 if(BUILD_PSFPLAYER)
 	add_subdirectory(tools/PsfPlayer)
 endif(BUILD_PSFPLAYER)
-
-# Add these optimization flags
-if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-    # Enable Link-Time Optimization
-    include(CheckIPOSupported)
-    check_ipo_supported(RESULT supported OUTPUT error)
-    
-    if(supported)
-        set_property(TARGET Play PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-        set_property(TARGET PlayCore PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-        message(STATUS "IPO/LTO enabled")
-    else()
-        message(STATUS "IPO/LTO not supported: <${error}>")
-    endif()
-endif()

@@ -573,21 +573,6 @@ target_include_directories(PlayCore
 )
 target_compile_definitions(PlayCore PUBLIC ${DEFINITIONS_LIST})
 
-# Add optimized compiler flags for graphics-heavy code
-if(MSVC)
-    # Enable advanced SIMD instructions
-    target_compile_options(PlayCore PRIVATE 
-				$<$<CONFIG:Release>:/arch:SSE4.2>  # AVX2 is too new and will severely limit compatibility...
-        $<$<CONFIG:Release>:/O2>
-        $<$<CONFIG:Release>:/GL>      # Whole program optimization
-        $<$<CONFIG:Release>:/fp:fast> # Fast floating point
-				$<$<CONFIG:RelWithDebInfo>:/arch:SSE4.2> # same but for Release with debug info
-        $<$<CONFIG:RelWithDebInfo>:/O2>
-        $<$<CONFIG:RelWithDebInfo>:/GL>
-        $<$<CONFIG:RelWithDebInfo>:/fp:fast>
-    )
-endif()
-
 if(TARGET_PLATFORM_WIN32)
 	add_precompiled_header(PlayCore Pch.h FORCEINCLUDE SOURCE_CXX Pch.cpp)
 endif()
