@@ -645,10 +645,8 @@ protected:
 
 			if(clGreaterEqualWl)
 			{
-				m_writeTick = std::min<uint32>(m_writeTick + 1, wl);
-				m_readTick = std::min<uint32>(m_readTick + 1, cl);
-
-				if(m_readTick == cl)
+				if(++m_writeTick >= wl) m_writeTick = wl;
+				if(++m_readTick >= cl)
 				{
 					m_writeTick = 0;
 					m_readTick = 0;
@@ -656,13 +654,14 @@ protected:
 			}
 			else
 			{
-				m_writeTick = std::min<uint32>(m_writeTick + 1, wl);
-				m_readTick = std::min<uint32>(m_readTick + 1, cl);
-
-				if(m_writeTick == wl)
+				if(++m_writeTick >= wl)
 				{
 					m_writeTick = 0;
 					m_readTick = 0;
+				}
+				else
+				{
+					if(++m_readTick >= cl) m_readTick = cl;
 				}
 			}
 
