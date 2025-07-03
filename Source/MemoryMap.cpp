@@ -4,6 +4,13 @@
 
 #define LOG_NAME "MemoryMap"
 
+CMemoryMap::CMemoryMap()
+{
+	m_instructionMap.resize(MAX_PAGES, nullptr);
+	m_readMap.resize(MAX_PAGES, nullptr);
+	m_writeMap.resize(MAX_PAGES, nullptr);
+}
+
 void CMemoryMap::InsertReadMap(uint32 start, uint32 end, void* pointer, unsigned char key)
 {
 	assert(GetReadMap(start) == nullptr);
@@ -67,7 +74,11 @@ void CMemoryMap::InsertMap(MemoryMapListType& memoryMap, uint32 start, uint32 en
 
 	for(uint32 page = start & ~PAGE_MASK; page <= end; page += PAGE_SIZE)
 	{
-		memoryMap[page] = elementPtr;
+		uint32 pageIndex = page >> 12;
+		if(pageIndex < MAX_PAGES)
+		{
+			memoryMap[pageIndex] = elementPtr;
+		}
 	}
 }
 
@@ -85,17 +96,22 @@ void CMemoryMap::InsertMap(MemoryMapListType& memoryMap, uint32 start, uint32 en
 
 	for(uint32 page = start & ~PAGE_MASK; page <= end; page += PAGE_SIZE)
 	{
-		memoryMap[page] = elementPtr;
+		uint32 pageIndex = page >> 12;
+		if(pageIndex < MAX_PAGES)
+		{
+			memoryMap[pageIndex] = elementPtr;
+		}
 	}
 }
 
 const CMemoryMap::MEMORYMAPELEMENT* CMemoryMap::GetMap(const MemoryMapListType& memoryMap, uint32 nAddress)
 {
-    uint32 page = nAddress & ~PAGE_MASK;
-    auto it = memoryMap.find(page);
-    if(it == memoryMap.end()) return nullptr;
+    uint32 pageIndex = (nAddress & ~PAGE_MASK) >> 12;
+    if(pageIndex >= MAX_PAGES) return nullptr;
     
-    MEMORYMAPELEMENT* element = it->second;
+    MEMORYMAPELEMENT* element = memoryMap[pageIndex];
+    if(!element) return nullptr;
+    
     if(nAddress >= element->nStart && nAddress <= element->nEnd)
     {
         return element;
