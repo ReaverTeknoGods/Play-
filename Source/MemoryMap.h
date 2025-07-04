@@ -34,8 +34,10 @@ public:
 
 	static constexpr uint32 PAGE_SIZE = 4096;
 	static constexpr uint32 PAGE_MASK = PAGE_SIZE - 1;
-	typedef std::unordered_map<uint32, MEMORYMAPELEMENT*> MemoryMapListType;
+	static constexpr uint32 MAX_PAGES = 0x100000;
+	typedef std::vector<MEMORYMAPELEMENT*> MemoryMapListType;
 
+	CMemoryMap();
 	virtual ~CMemoryMap() = default;
 	uint8 GetByte(uint32);
 	virtual uint16 GetHalf(uint32) = 0;
