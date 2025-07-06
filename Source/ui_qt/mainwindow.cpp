@@ -1296,14 +1296,14 @@ void MainWindow::UpdateCanvasInfo()
 		info.windowWidth = clientRect.right;
 		info.windowHeight = clientRect.bottom;
 
-		auto border = (windowRect.right - windowRect.left - info.windowWidth) / 2;
+		auto border = (windowRect.right - windowRect.left - clientRect.right) / 2;
 		info.windowLocationX = windowRect.left + border;
 		info.windowLocationY = windowRect.bottom - info.windowHeight - border;
 
-		int vpOfsX = static_cast<int>(static_cast<float>(presentationViewport.offsetX) / scale);
-		int vpOfsY = static_cast<int>(static_cast<float>(presentationViewport.offsetY) / scale);
-		int vpWidth = static_cast<int>(static_cast<float>(presentationViewport.width) / scale);
-		int vpHeight = static_cast<int>(static_cast<float>(presentationViewport.height) / scale);
+		int vpOfsX = static_cast<int>(presentationViewport.offsetX);
+		int vpOfsY = static_cast<int>(presentationViewport.offsetY);
+		int vpWidth = static_cast<int>(presentationViewport.width);
+		int vpHeight = static_cast<int>(presentationViewport.height);
 
 		info.viewportLeft = info.windowLocationX + vpOfsX;
 		info.viewportTop = info.windowLocationY + vpOfsY;
