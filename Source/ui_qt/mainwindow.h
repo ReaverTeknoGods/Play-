@@ -14,6 +14,9 @@
 #include "InputProviderQtKey.h"
 #include "InputProviderQtMouse.h"
 #include "ScreenShotUtils.h"
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace Ui
 {
@@ -128,6 +131,24 @@ private:
 	Ui::DebugDockMenu* debugDockMenuUi = nullptr;
 	Ui::DebugMenu* debugMenuUi = nullptr;
 #endif
+#ifdef _WIN32
+	HANDLE m_canvasInfoMMF = nullptr;
+	void* m_canvasInfoView = nullptr;
+#endif
+
+	struct CanvasInfo
+	{
+		int windowLocationX;
+		int windowLocationY;
+		int windowWidth;
+		int windowHeight;
+		int viewportLeft;
+		int viewportTop;
+		int viewportRight;
+		int viewportBottom;
+	};
+
+	void UpdateCanvasInfo();
 
 protected:
 	void closeEvent(QCloseEvent*) Q_DECL_OVERRIDE;
