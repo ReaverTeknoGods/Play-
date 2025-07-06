@@ -156,6 +156,18 @@ MainWindow::~MainWindow()
 	delete debugDockMenuUi;
 	delete debugMenuUi;
 #endif
+#ifdef _WIN32
+	if(m_canvasInfoView)
+	{
+		UnmapViewOfFile(m_canvasInfoView);
+		m_canvasInfoView = nullptr;
+	}
+	if(m_canvasInfoMMF)
+	{
+		CloseHandle(m_canvasInfoMMF);
+		m_canvasInfoMMF = nullptr;
+	}
+#endif
 }
 
 void MainWindow::InitVirtualMachine()
@@ -303,6 +315,7 @@ void MainWindow::outputWindow_resized()
 			m_virtualMachine->m_ee->m_gs->Flip(CGSHandler::FLIP_FLAG_WAIT | CGSHandler::FLIP_FLAG_FORCE);
 		}
 	}
+	UpdateCanvasInfo();
 }
 
 void MainWindow::on_actionBoot_DiscImage_triggered()
@@ -919,6 +932,8 @@ void MainWindow::outputWindow_mouseMoveEvent(QMouseEvent* ev)
 		    static_cast<float>(mouseX) / static_cast<float>(vpWidth),
 		    static_cast<float>(mouseY) / static_cast<float>(vpHeight));
 	}
+
+	UpdateCanvasInfo();
 }
 
 void MainWindow::outputWindow_mousePressEvent(QMouseEvent* ev)
@@ -1253,4 +1268,73 @@ void MainWindow::SetupDebugger()
 #endif //defined(__APPLE__)
 
 #endif //DEBUGGER_INCLUDED
+}
+
+void MainWindow::UpdateCanvasInfo()
+{
+#ifdef _WIN32
+	if(!m_virtualMachine || !m_virtualMachine->GetGSHandler()) return;
+
+	auto gsHandler = m_virtualMachine->GetGSHandler();
+	qreal scale = 1.0;
+#if QT_VERSION >= QT_VERSION_CHECK(5, 6, 0)
+	scale = devicePixelRatioF();
+#endif
+	auto presentationViewport = gsHandler->GetPresentationViewport();
+
+	CanvasInfo info = {};
+
+	HWND hwnd = reinterpret_cast<HWND>(m_outputwindow->winId());
+	if(hwnd)
+	{
+		RECT clientRect;
+		GetClientRect(hwnd, &clientRect);
+
+		RECT windowRect;
+		GetWindowRect(hwnd, &windowRect);
+
+		info.windowWidth = clientRect.right;
+		info.windowHeight = clientRect.bottom;
+
+		auto border = (windowRect.right - windowRect.left - info.windowWidth) / 2;
+		info.windowLocationX = windowRect.left + border;
+		info.windowLocationY = windowRect.bottom - info.windowHeight - border;
+
+		int vpOfsX = static_cast<int>(static_cast<float>(presentationViewport.offsetX) / scale);
+		int vpOfsY = static_cast<int>(static_cast<float>(presentationViewport.offsetY) / scale);
+		int vpWidth = static_cast<int>(static_cast<float>(presentationViewport.width) / scale);
+		int vpHeight = static_cast<int>(static_cast<float>(presentationViewport.height) / scale);
+
+		info.viewportLeft = info.windowLocationX + vpOfsX;
+		info.viewportTop = info.windowLocationY + vpOfsY;
+		info.viewportRight = info.viewportLeft + vpWidth;
+		info.viewportBottom = info.viewportTop + vpHeight;
+	}
+
+	if(!m_canvasInfoMMF)
+	{
+		m_canvasInfoMMF = CreateFileMappingA(
+		    INVALID_HANDLE_VALUE,
+		    nullptr,
+		    PAGE_READWRITE,
+		    0,
+		    sizeof(CanvasInfo),
+		    "PlayCanvasInfo");
+
+		if(m_canvasInfoMMF)
+		{
+			m_canvasInfoView = MapViewOfFile(
+			    m_canvasInfoMMF,
+			    FILE_MAP_ALL_ACCESS,
+			    0,
+			    0,
+			    sizeof(CanvasInfo));
+		}
+	}
+
+	if(m_canvasInfoView)
+	{
+		memcpy(m_canvasInfoView, &info, sizeof(CanvasInfo));
+	}
+#endif
 }
