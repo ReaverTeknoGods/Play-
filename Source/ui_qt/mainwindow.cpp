@@ -1309,6 +1309,21 @@ void MainWindow::UpdateCanvasInfo()
 		info.viewportTop = info.windowLocationY + vpOfsY;
 		info.viewportRight = info.viewportLeft + vpWidth;
 		info.viewportBottom = info.viewportTop + vpHeight;
+		
+		HDC hdc = GetDC(hwnd);
+		if(hdc)
+		{
+			int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
+			int dpiY = GetDeviceCaps(hdc, LOGPIXELSY);
+			info.dpiScaleX = static_cast<double>(dpiX) / 96.0;
+			info.dpiScaleY = static_cast<double>(dpiY) / 96.0;
+			ReleaseDC(hwnd, hdc);
+		}
+		else
+		{
+			info.dpiScaleX = 1.0;
+			info.dpiScaleY = 1.0;
+		}
 	}
 
 	if(!m_canvasInfoMMF)

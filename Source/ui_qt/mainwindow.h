@@ -146,6 +146,8 @@ private:
 		int viewportTop;
 		int viewportRight;
 		int viewportBottom;
+		double dpiScaleX;
+		double dpiScaleY;
 	};
 
 	void UpdateCanvasInfo();
