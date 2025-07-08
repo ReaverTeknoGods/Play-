@@ -563,6 +563,20 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 					(*output++) = static_cast<uint8>(0);
 					(*output++) = static_cast<uint8>(analog2);
 				}
+				else if(m_gameId == "cobrata")
+				{
+					uint16_t a0 = (analog0 << 8) | analog0;
+					uint16_t a2 = (analog2 << 8) | analog2;
+
+					a0 = ~a0; // Vertical axis needs to be inverted somehow
+					if(analog2 == 0) a2 = 0xFFFF; // 0xFFFF = out of screen. 0 does not trigger it
+					if(a0 == 0xFFFF) a0 = 0x0; // and for vertical its the other way around? 
+
+					(*output++) = static_cast<uint8_t>((a2 >> 8) & 0xFF);
+					(*output++) = static_cast<uint8_t>(a2 & 0xFF);
+					(*output++) = static_cast<uint8_t>((a0 >> 8) & 0xFF);
+					(*output++) = static_cast<uint8_t>(a0 & 0xFF);
+				}
 				else
 				{
 					assert(channel == 2);
@@ -1034,7 +1048,6 @@ void CSys246::ProcessMemRequest(uint8* ram, uint32 infoPtr)
 			{
 				ram[recvDataPtr + 0x30] = 0x70;
 			}
-
 			uint16 pktId = sendData[0x0C];
 			if(pktId != 0)
 			{
