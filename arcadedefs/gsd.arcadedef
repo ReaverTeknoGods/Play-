@@ -1,0 +1,17 @@
+{
+	"id": "gsd",
+	"name": "Mobile Suit Gundam Seed Destiny: Rengou vs. Z.A.F.T. II",
+	"driver": "sys246",
+	"dongle":
+	{
+		"name": "gsd1.bin"
+	},
+	"cdvd":
+	{
+		"name": "gsd1_dvd0a.chd"
+	},
+	"boot": "ac0:SE2LOAD",
+	"patches":
+	[
+	]
+}
