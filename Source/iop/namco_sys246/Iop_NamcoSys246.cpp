@@ -563,7 +563,7 @@ void CSys246::ProcessJvsPacket(const uint8* input, uint8* output)
 					(*output++) = static_cast<uint8>(0);
 					(*output++) = static_cast<uint8>(analog2);
 				}
-				else if(m_gameId == "cobrata")
+				else if(m_gameId == "cobrata" || m_gameId == "cobrataw")
 				{
 					uint16_t a0 = (analog0 << 8) | analog0;
 					uint16_t a2 = (analog2 << 8) | analog2;
