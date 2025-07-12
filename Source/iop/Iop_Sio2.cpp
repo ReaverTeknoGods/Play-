@@ -123,32 +123,32 @@ void CSio2::SetButtonState(unsigned int padNumber, PS2::CControllerInfo::BUTTON 
 {
 	if(padNumber >= MAX_PADS) return;
 
-	auto& padState = m_padState[padNumber];
-	auto buttonMask = static_cast<uint16>(GetButtonMask(button));
-	padState.buttonState &= ~buttonMask;
-	if(!pressed)
-	{
-		padState.buttonState |= buttonMask;
-	}
+	// auto& padState = m_padState[padNumber];
+	// auto buttonMask = static_cast<uint16>(GetButtonMask(button));
+	// padState.buttonState &= ~buttonMask;
+	// if(!pressed)
+	// {
+	// 	padState.buttonState |= buttonMask;
+	// }
 }
 
 void CSio2::SetAxisState(unsigned int padNumber, PS2::CControllerInfo::BUTTON axis, uint8 axisValue, uint8* ram)
 {
 	assert(padNumber < MAX_PADS);
-	if(padNumber >= MAX_PADS) return;
+	// if(padNumber >= MAX_PADS) return;
 
-	assert(axis < 4);
-	if(axis >= 4) return;
+	// assert(axis < 4);
+	// if(axis >= 4) return;
 
-	static const unsigned int axisIndex[4] =
-	    {
-	        2,
-	        3,
-	        0,
-	        1};
+	// static const unsigned int axisIndex[4] =
+	//     {
+	//         2,
+	//         3,
+	//         0,
+	//         1};
 
-	auto& padState = m_padState[padNumber];
-	padState.analogStickState[axisIndex[axis]] = axisValue;
+	// auto& padState = m_padState[padNumber];
+	// padState.analogStickState[axisIndex[axis]] = axisValue;
 }
 
 uint32 CSio2::ReadRegister(uint32 address)
@@ -295,8 +295,9 @@ void CSio2::ProcessController(unsigned int portId, size_t outputOffset, uint32 d
 		assert(srcSize >= 3);
 
 		unsigned int padId = portId & 0x01;
-		auto& padState = m_padState[padId];
+		//auto& padState = m_padState[padId];
 
+		PADSTATE padState{};
 		//Write header
 		m_outputBuffer[outputOffset + 0x00] = 0xFF;
 		m_outputBuffer[outputOffset + 0x01] = padState.configMode ? ID_CONFIG : padState.mode;

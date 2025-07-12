@@ -48,6 +48,23 @@ namespace Iop
 				MODULE_ID_99 = 0x00014799,  //S147LINK
 			};
 
+			enum PACMAN_AP_BUTTON
+			{
+				PACMAN_AP_BUTTON_TEST = 84,
+				PACMAN_AP_BUTTON_SERVICE = 85,
+				PACMAN_AP_BUTTON_UP = 86,
+				PACMAN_AP_BUTTON_DOWN = 87,
+				PACMAN_AP_BUTTON_ENTER = 88,
+				PACMAN_AP_BUTTON_STICKDOWN = 89,
+				PACMAN_AP_BUTTON_STICKUP = 90,
+				PACMAN_AP_BUTTON_STICKRIGHT = 91,
+				PACMAN_AP_BUTTON_STICKLEFT = 92,
+				PACMAN_AP_BUTTON_B1 = 93,
+				PACMAN_AP_BUTTON_B2 = 94,
+				PACMAN_AP_BUTTON_P1 = 95,
+				PACMAN_AP_BUTTON_P2 = 102
+			};
+
 			struct MODULE_99_PACKET
 			{
 				uint8 type;
@@ -90,6 +107,8 @@ namespace Iop
 
 			std::vector<MODULE_99_PACKET> m_pendingReplies;
 			std::map<uint8, uint8> m_switchStates;
+
+			uint16_t m_currentCredits = 0;
 
 			//AI board state
 			uint16 m_systemSwitchState = 0xFFFF;
