@@ -307,6 +307,7 @@ public:
 			m_nPointer = nPointer;
 			m_nWidth = nWidth;
 			m_pMemory = pMemory;
+			m_pagesPerRow = (m_nWidth * 64) / Storage::PAGEWIDTH;
 			BuildPageOffsetTable();
 		}
 
@@ -322,14 +323,16 @@ public:
 
 		typename Storage::Unit* GetPixelAddress(unsigned int nX, unsigned int nY)
 		{
-			uint32 pageNum = (nX / Storage::PAGEWIDTH) + (nY / Storage::PAGEHEIGHT) * (m_nWidth * 64) / Storage::PAGEWIDTH;
+        uint32 pageX = nX / Storage::PAGEWIDTH;
+        uint32 pageY = nY / Storage::PAGEHEIGHT;
+        uint32 pageNum = pageX + pageY * m_pagesPerRow;
 
-			nX %= Storage::PAGEWIDTH;
-			nY %= Storage::PAGEHEIGHT;
+        nX &= (Storage::PAGEWIDTH - 1);
+        nY &= (Storage::PAGEHEIGHT - 1);
 
-			uint32 pageOffset = m_pageOffsets[nY][nX];
-			auto pixelAddr = m_pMemory + ((m_nPointer + (pageNum * PAGESIZE) + pageOffset) & (CGSHandler::RAMSIZE - 1));
-			return reinterpret_cast<typename Storage::Unit*>(pixelAddr);
+        uint32 pageOffset = m_pageOffsets[nY][nX];
+        auto pixelAddr = m_pMemory + ((m_nPointer + (pageNum << 13) + pageOffset) & (CGSHandler::RAMSIZE - 1));
+        return reinterpret_cast<typename Storage::Unit*>(pixelAddr);
 		}
 
 		static uint32* GetPageOffsets()
@@ -338,24 +341,26 @@ public:
 			return reinterpret_cast<uint32*>(m_pageOffsets);
 		}
 
-		uint32 GetColumnAddress(unsigned int& nX, unsigned int& nY)
-		{
-			uint32 nPageNum = (nX / Storage::PAGEWIDTH) + (nY / Storage::PAGEHEIGHT) * (m_nWidth * 64) / Storage::PAGEWIDTH;
+    uint32 GetColumnAddress(unsigned int& nX, unsigned int& nY)
+    {
+        uint32 pageX = nX / Storage::PAGEWIDTH;
+        uint32 pageY = nY / Storage::PAGEHEIGHT;
+        uint32 nPageNum = pageX + pageY * m_pagesPerRow;
 
-			nX %= Storage::PAGEWIDTH;
-			nY %= Storage::PAGEHEIGHT;
+        nX &= (Storage::PAGEWIDTH - 1);
+        nY &= (Storage::PAGEHEIGHT - 1);
 
-			uint32 nBlockNum = Storage::m_nBlockSwizzleTable[nY / Storage::BLOCKHEIGHT][nX / Storage::BLOCKWIDTH];
+        uint32 nBlockNum = Storage::m_nBlockSwizzleTable[nY / Storage::BLOCKHEIGHT][nX / Storage::BLOCKWIDTH];
 
-			nX %= Storage::BLOCKWIDTH;
-			nY %= Storage::BLOCKHEIGHT;
+        nX &= (Storage::BLOCKWIDTH - 1);
+        nY &= (Storage::BLOCKHEIGHT - 1);
 
-			uint32 nColumnNum = (nY / Storage::COLUMNHEIGHT);
+        uint32 nColumnNum = nY / Storage::COLUMNHEIGHT;
 
-			nY %= Storage::COLUMNHEIGHT;
+        nY &= (Storage::COLUMNHEIGHT - 1);
 
-			return (m_nPointer + (nPageNum * PAGESIZE) + (nBlockNum * BLOCKSIZE) + (nColumnNum * COLUMNSIZE)) & (CGSHandler::RAMSIZE - 1);
-		}
+        return (m_nPointer + (nPageNum << 13) + (nBlockNum << 8) + (nColumnNum << 6)) & (CGSHandler::RAMSIZE - 1);
+    }
 
 	private:
 		static void BuildPageOffsetTable()
@@ -389,6 +394,7 @@ public:
 		uint32 m_nPointer;
 		uint32 m_nWidth;
 		uint8* m_pMemory;
+		uint32 m_pagesPerRow;
 		static bool m_pageOffsetsInitialized;
 		static uint32 m_pageOffsets[Storage::PAGEHEIGHT][Storage::PAGEWIDTH];
 	};

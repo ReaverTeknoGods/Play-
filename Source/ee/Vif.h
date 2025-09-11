@@ -142,7 +142,7 @@ protected:
 
 		inline uint32 GetAvailableReadBytes() const
 		{
-			return GetRemainingDmaTransferSize() + (BUFFERSIZE - m_bufferPosition);
+			return (m_endAddress - m_nextAddress) + (BUFFERSIZE - m_bufferPosition);
 		}
 
 		inline uint32 GetRemainingDmaTransferSize() const
@@ -337,10 +337,12 @@ protected:
 		uint32 value;
 		stream.ReadValue<4>(&value);
 
-		for(unsigned int i = 0; i < 4; i++)
-		{
-			result.nV[i] = value;
-		}
+		// manually unrolled, although i can't see whether or not MSVC is
+		// doing it automatically anyway 
+		result.nV0 = value;
+		result.nV1 = value;
+		result.nV2 = value;
+		result.nV3 = value;
 
 		return true;
 	}
@@ -408,7 +410,14 @@ protected:
 	inline bool Unpack_V32(StreamType& stream, uint128& result)
 	{
 		if(stream.GetAvailableReadBytes() < (fields * 4)) return false;
-		stream.ReadValue<fields * 4>(&result);
+		if constexpr(fields == 4)
+		{
+			stream.ReadValue<16>(&result);
+		}
+		else
+		{
+			stream.ReadValue<fields * 4>(&result);
+		}
 		return true;
 	}
 
@@ -459,66 +468,59 @@ protected:
 	template <uint8 dataType, bool usn>
 	bool Unpack_ReadValue(StreamType& stream, uint128& writeValue)
 	{
-		bool success = false;
-		switch(dataType)
+		if constexpr(dataType == 0x00)
 		{
-		case 0x00:
-			//S-32
-			success = Unpack_S32(stream, writeValue);
-			break;
-		case 0x01:
-			//S-16
-			success = Unpack_S16<usn>(stream, writeValue);
-			break;
-		case 0x02:
-			//S-8
-			success = Unpack_S8<usn>(stream, writeValue);
-			break;
-		case 0x04:
-			//V2-32
-			success = Unpack_V32<2>(stream, writeValue);
-			break;
-		case 0x05:
-			//V2-16
-			success = Unpack_V16<2, usn>(stream, writeValue);
-			break;
-		case 0x06:
-			//V2-8
-			success = Unpack_V8<2, usn>(stream, writeValue);
-			break;
-		case 0x08:
-			//V3-32
-			success = Unpack_V32<3>(stream, writeValue);
-			break;
-		case 0x09:
-			//V3-16
-			success = Unpack_V16<3, usn>(stream, writeValue);
-			break;
-		case 0x0A:
-			//V3-8
-			success = Unpack_V8<3, usn>(stream, writeValue);
-			break;
-		case 0x0C:
-			//V4-32
-			success = Unpack_V32<4>(stream, writeValue);
-			break;
-		case 0x0D:
-			//V4-16
-			success = Unpack_V16<4, usn>(stream, writeValue);
-			break;
-		case 0x0E:
-			//V4-8
-			success = Unpack_V8<4, usn>(stream, writeValue);
-			break;
-		case 0x0F:
-			//V4-5
-			success = Unpack_V45(stream, writeValue);
-			break;
-		default:
-			assert(0);
-			break;
+			return Unpack_S32(stream, writeValue);
 		}
-		return success;
+		else if constexpr(dataType == 0x01)
+		{
+			return Unpack_S16<usn>(stream, writeValue);
+		}
+		else if constexpr(dataType == 0x02)
+		{
+			return Unpack_S8<usn>(stream, writeValue);
+		}
+		else if constexpr(dataType == 0x04)
+		{
+			return Unpack_V32<2>(stream, writeValue);
+		}
+		else if constexpr(dataType == 0x05)
+		{
+			return Unpack_V16<2, usn>(stream, writeValue);
+		}
+		else if constexpr(dataType == 0x06)
+		{
+			return Unpack_V8<2, usn>(stream, writeValue);
+		}
+		else if constexpr(dataType == 0x08)
+		{
+			return Unpack_V32<3>(stream, writeValue);
+		}
+		else if constexpr(dataType == 0x09)
+		{
+			return Unpack_V16<3, usn>(stream, writeValue);
+		}
+		else if constexpr(dataType == 0x0A)
+		{
+			return Unpack_V8<3, usn>(stream, writeValue);
+		}
+		else if constexpr(dataType == 0x0C)
+		{
+			return Unpack_V32<4>(stream, writeValue);
+		}
+		else if constexpr(dataType == 0x0D)
+		{
+			return Unpack_V16<4, usn>(stream, writeValue);
+		}
+		else if constexpr(dataType == 0x0E)
+		{
+			return Unpack_V8<4, usn>(stream, writeValue);
+		}
+		else if constexpr(dataType == 0x0F)
+		{
+			return Unpack_V45(stream, writeValue);
+		}
+		return false;
 	}
 
 	template <uint8 dataType, bool clGreaterEqualWl, bool useMask, uint8 mode, bool usn>
@@ -528,6 +530,7 @@ protected:
 
 		const auto vuMem = m_vpu.GetVuMemory();
 		const auto vuMemSize = m_vpu.GetVuMemorySize();
+		const uint32 vuMemMask = vuMemSize - 1;
 		uint32 cl = m_CYCLE.nCL;
 		uint32 wl = m_CYCLE.nWL;
 		if(wl == 0)
@@ -557,7 +560,7 @@ protected:
 
 		nDstAddr *= 0x10;
 		assert(nDstAddr < vuMemSize);
-		nDstAddr &= (vuMemSize - 1);
+		nDstAddr &= vuMemMask;
 
 		while(currentNum != 0)
 		{
@@ -667,7 +670,7 @@ protected:
 			}
 
 			nDstAddr += 0x10;
-			nDstAddr &= (vuMemSize - 1);
+			nDstAddr &= vuMemMask;
 		}
 
 		if(currentNum != 0)
