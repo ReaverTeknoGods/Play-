@@ -1,0 +1,28 @@
+{
+	"id": "batlgr38",
+	"name": "Battle Gear 3 (Ver.2.08J)",
+	"driver": "sys246",
+	"dongle":
+	{
+		"name": "batlgr38.ic002"
+	},
+	"hdd":
+	{
+		"name": "batlgr38.chd"
+	},
+	"inputMode": "drive",
+	"boot": "ac0:BGRLOAD",
+	"patches":
+	[
+		{
+			"address": "0x001008EC",
+			"value": "0x0",
+			"description": "Fixes hang on white screen."
+		},
+		{
+			"address": "0x0017E52C",
+			"value": "0x0",
+			"description": "Removes T1_COUNT read that throws off idle detector."
+		}
+	]
+}

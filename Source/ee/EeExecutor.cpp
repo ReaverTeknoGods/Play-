@@ -2,6 +2,7 @@
 #include "../Ps2Const.h"
 #include "AlignedAlloc.h"
 #include "EeBasicBlock.h"
+#include "MA_EE.h"
 #include "xxhash.h"
 
 #if defined(__unix__) || defined(__ANDROID__) || defined(__APPLE__)
@@ -47,6 +48,11 @@ CEeExecutor::CEeExecutor(CMIPS& context, uint8* ram)
 void CEeExecutor::SetBlockFpRoundingModes(BlockFpRoundingModeMap blockFpRoundingModes)
 {
 	m_blockFpRoundingModes = std::move(blockFpRoundingModes);
+}
+
+void CEeExecutor::SetBlockFpUseAccurateAddSub(BlockFpUseAccurateAddSubSet blockFpUseAccurateAddSub)
+{
+	m_blockFpUseAccurateAddSub = std::move(blockFpUseAccurateAddSub);
 }
 
 void CEeExecutor::SetIdleLoopBlocks(IdleLoopBlockMap idleLoopBlocks)
@@ -183,7 +189,9 @@ BasicBlockPtr CEeExecutor::BlockFactory(CMIPS& context, uint32 start, uint32 end
 		}
 	}
 
-	bool isCacheableBlock = !hasBreakpoint && !blockFpRoundingModeOverride.has_value() && !isIdleLoopBlockOverride;
+	bool fpUseAccurateAddSub = (m_blockFpUseAccurateAddSub.count(start) != 0);
+
+	bool isCacheableBlock = !hasBreakpoint && !blockFpRoundingModeOverride.has_value() && !isIdleLoopBlockOverride && !fpUseAccurateAddSub;
 	if(isCacheableBlock)
 	{
 		auto blockIterator = m_cachedBlocks.find(blockKey);
@@ -214,6 +222,11 @@ BasicBlockPtr CEeExecutor::BlockFactory(CMIPS& context, uint32 start, uint32 end
 	{
 		result->SetIsIdleLoopBlock();
 	}
+	if(fpUseAccurateAddSub)
+	{
+		result->AddBlockCompileHints(CMA_EE::COMPILEHINT_FPU_USE_ACCURATE_ADD_SUB);
+	}
+
 	result->Compile();
 	if(isCacheableBlock)
 	{
