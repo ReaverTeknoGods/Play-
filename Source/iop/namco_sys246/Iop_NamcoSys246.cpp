@@ -959,9 +959,16 @@ void CSys246::ProcessBgStrPacket(const uint8* input, uint8* output, int length)
 
 		if(m_bgStrReportWheelPos)
 		{
-			uint8_t param = 3;                                                                   // Byte order, either bits can be set, real board has both set
-			uint16_t wheelPos = (0xFF - (m_jvsWheelChannels[JVS_WHEEL_CHANNEL_WHEEL] >> 8)) * 4; // With above gives us 10-bit wheel value, though play only provides an 8 bit axis,
-			                                                                                     // which when passed to jvs is converted to a 16 bit big endian number, bg3 also needs this inverted for some reason?
+			BYTE analog0 = 0;
+#ifdef _WIN32
+			if(g_jvs_view_ptr)
+			{
+				analog0 = *reinterpret_cast<BYTE*>(static_cast<BYTE*>(g_jvs_view_ptr) + 13);
+			}
+#endif
+
+			uint8_t param = 3; // Byte order, either bits can be set, real board has both set
+			uint16_t wheelPos = (0xFF - analog0) * 4; 
 			uint16_t state = wheelPos | (param << 10);
 			(*output++) = static_cast<uint8>(state >> 8);
 			(*output++) = static_cast<uint8>(state);
